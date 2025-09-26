@@ -1,0 +1,130 @@
+{
+  "Distributed Antenna Systems (DAS)": {
+    "weight": 10,
+    "terms": [
+      "das",
+      "distributed antenna system",
+      "neutral host",
+      "in-building wireless",
+      "signal booster",
+      "bda",
+      "bi-directional amplifier"
+    ]
+  },
+  "POTS Replacement / Telephony": {
+    "weight": 9,
+    "terms": [
+      "pots replacement",
+      "analog line replacement",
+      "voip",
+      "voice over ip",
+      "ip telephony",
+      "sip trunking",
+      "legacy phone replacement",
+      "copper replacement"
+    ]
+  },
+  "Elevator & Emergency Phones": {
+    "weight": 8,
+    "terms": [
+      "elevator phone",
+      "emergency phone",
+      "lift communication",
+      "call box",
+      "two-way communication",
+      "code compliant phone"
+    ]
+  },
+  "Fire Alarm Monitoring": {
+    "weight": 8,
+    "terms": [
+      "fire alarm monitoring",
+      "facp",
+      "fire panel",
+      "life safety system",
+      "alarm line monitoring"
+    ]
+  },
+  "5G / Private Networking": {
+    "weight": 9,
+    "terms": [
+      "5g",
+      "private 5g",
+      "lte",
+      "private lte",
+      "cbrs",
+      "citizens broadband radio service",
+      "small cell",
+      "private network",
+      "edge network"
+    ]
+  },
+  "Structured Cabling / IT Infrastructure": {
+    "weight": 7,
+    "terms": [
+      "structured cabling",
+      "fiber optic",
+      "cat6",
+      "cat5e",
+      "low voltage wiring",
+      "network cabling",
+      "data cabling",
+      "cable installation"
+    ]
+  },
+  "IT Consulting & Managed Services": {
+    "weight": 6,
+    "terms": [
+      "it consulting",
+      "managed services",
+      "technology services",
+      "infrastructure services",
+      "systems integration",
+      "network support",
+      "it support",
+      "professional services"
+    ]
+  },
+  "Healthcare Technology": {
+    "weight": 7,
+    "terms": [
+      "hospital",
+      "clinic",
+      "telemedicine",
+      "patient monitoring",
+      "healthcare it",
+      "medical communications",
+      "nurse call system"
+    ]
+  },
+  "Military & Defense": {
+    "weight": 9,
+    "terms": [
+      "dod",
+      "department of defense",
+      "army",
+      "navy",
+      "air force",
+      "marines",
+      "usaf",
+      "usmc",
+      "military base",
+      "defense communications",
+      "ng911"
+    ]
+  },
+  "State & Local Government": {
+    "weight": 7,
+    "terms": [
+      "city",
+      "county",
+      "municipality",
+      "state agency",
+      "government procurement",
+      "public works",
+      "school district",
+      "education rfp",
+      "university telecom"
+    ]
+  }
+}
