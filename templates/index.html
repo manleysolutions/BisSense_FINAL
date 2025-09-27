@@ -1,89 +1,217 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <title>BidSense Opportunities</title>
+    <meta charset="UTF-8">
+    <title>BidSense Dashboard</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/css/bootstrap.min.css" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
     <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; }
-        th, td { border: 1px solid #ddd; padding: 8px; }
-        th { background-color: #f2f2f2; }
-        tr:nth-child(even) { background-color: #f9f9f9; }
-        tr:hover { background-color: #f1f1f1; }
-        .actions form { display: inline; margin: 0; padding: 0; }
-        .notes-box { width: 150px; }
-        .toggle-box { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; background: #fafafa; }
+        body { font-size: 0.95rem; padding-bottom: 90px; } /* bottom padding for navbar */
+        @media (max-width: 768px) {
+            .desktop-table { display: none; }
+            .mobile-cards { display: block; }
+            .bottom-navbar { display: flex; }
+        }
+        @media (min-width: 769px) {
+            .desktop-table { display: block; }
+            .mobile-cards { display: none; }
+            .bottom-navbar { display: none; }
+        }
     </style>
 </head>
-<body>
-    <h2>BidSense Opportunities</h2>
+<body class="bg-light">
+<div class="container-fluid py-3">
+    <h1 class="mb-3 text-center">📊 BidSense Dashboard</h1>
 
-    <div class="toggle-box">
-        <form method="post" action="/toggle_auto">
-            <strong>Auto-Decision Mode:</strong>
-            {% if auto_mode %}
-                <span style="color: green; font-weight: bold;">ENABLED</span>
-                <button type="submit">Disable</button>
-            {% else %}
-                <span style="color: red; font-weight: bold;">DISABLED</span>
-                <button type="submit">Enable</button>
-            {% endif %}
-        </form>
+    <!-- Status Summary (desktop) -->
+    <div class="d-none d-md-flex flex-md-row justify-content-between align-items-md-center mb-3">
+        <div class="alert alert-info flex-grow-1 text-center text-md-start mb-0">
+            <strong>Pipeline:</strong>
+            <span class="badge bg-success">Select to Bid: <span id="countBid">0</span></span>
+            <span class="badge bg-warning text-dark">Hold: <span id="countHold">0</span></span>
+            <span class="badge bg-secondary">Ignore: <span id="countIgnore">0</span></span>
+            <span class="badge bg-dark">Total: <span id="countTotal">0</span></span>
+        </div>
+        <div class="btn-group ms-md-3">
+            <button class="btn btn-sm btn-outline-primary dropdown-toggle" data-bs-toggle="dropdown">
+                ⬇️ Export
+            </button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="/export/csv">Export CSV</a></li>
+                <li><a class="dropdown-item" href="/export/excel">Export Excel (.xlsx)</a></li>
+            </ul>
+        </div>
     </div>
 
-    <form method="get" action="/">
-        Minimum Score: <input type="number" name="min_score" value="{{ min_score }}">
-        Status:
-        <select name="status">
-            <option value="All" {% if status_filter == "All" %}selected{% endif %}>All</option>
-            <option value="Pending" {% if status_filter == "Pending" %}selected{% endif %}>Pending</option>
-            <option value="Approved" {% if status_filter == "Approved" %}selected{% endif %}>Approved</option>
-            <option value="Rejected" {% if status_filter == "Rejected" %}selected{% endif %}>Rejected</option>
-            <option value="Hold" {% if status_filter == "Hold" %}selected{% endif %}>Hold</option>
-        </select>
-        <input type="submit" value="Apply Filters">
-        <a href="/">Reset</a>
-    </form>
+    <!-- Filter Toolbar (desktop only) -->
+    <div class="mb-3 text-center d-none d-md-block">
+        <div class="btn-group flex-wrap" role="group" aria-label="Filter">
+            <button class="btn btn-outline-secondary active" onclick="filterRows('all')">All</button>
+            <button class="btn btn-outline-success" onclick="filterRows('Select to Bid')">Select to Bid</button>
+            <button class="btn btn-outline-warning" onclick="filterRows('Hold')">Hold</button>
+            <button class="btn btn-outline-secondary" onclick="filterRows('Ignore')">Ignore</button>
+        </div>
+    </div>
 
-    <table>
-        <tr>
-            <th>Title</th>
-            <th>Agency</th>
-            <th>Due Date</th>
-            <th>Source</th>
-            <th>Score</th>
-            <th>Status</th>
-            <th>Reviewer</th>
-            <th>Decided At</th>
-            <th>Notes</th>
-            <th>Actions</th>
-        </tr>
-        {% for row in rows %}
-        <tr>
-            <td><a href="{{ row['url'] }}" target="_blank">{{ row['title'] }}</a></td>
-            <td>{{ row['agency'] }}</td>
-            <td>{{ row['due_date'] or 'None' }}</td>
-            <td>{{ row['source'] }}</td>
-            <td>{{ row['score'] }}</td>
-            <td>{{ row['status'] }}</td>
-            <td>{{ row['reviewer'] or '' }}</td>
-            <td>{{ row['decided_at'] or '' }}</td>
-            <td>{{ row['notes'] or '' }}</td>
-            <td class="actions">
-                <form action="/decision/{{ row['id'] }}/Approve" method="post">
-                    <input type="text" name="notes" class="notes-box" placeholder="Add notes...">
-                    <button type="submit">Approve</button>
-                </form>
-                <form action="/decision/{{ row['id'] }}/Reject" method="post">
-                    <input type="text" name="notes" class="notes-box" placeholder="Add notes...">
-                    <button type="submit">Reject</button>
-                </form>
-                <form action="/decision/{{ row['id'] }}/Hold" method="post">
-                    <input type="text" name="notes" class="notes-box" placeholder="Add notes...">
-                    <button type="submit">Hold</button>
-                </form>
-            </td>
-        </tr>
+    <!-- Desktop Table -->
+    <div class="table-responsive desktop-table">
+        <table id="oppsTable" class="table table-striped table-bordered align-middle">
+            <thead class="table-dark">
+                <tr>
+                    <th>ID</th>
+                    <th>Title</th>
+                    <th>Agency</th>
+                    <th>Category</th>
+                    <th>Due Date</th>
+                    <th>Score</th>
+                    <th>Approval</th>
+                    <th>Reason</th>
+                    <th>Breakdown</th>
+                </tr>
+            </thead>
+            <tbody>
+            {% for opp in opportunities %}
+                <tr data-decision="{{ opp.decision }}" data-id="{{ opp.id }}">
+                    <td>{{ opp.id }}</td>
+                    <td><a href="{{ opp.url }}" target="_blank">{{ opp.title }}</a></td>
+                    <td>{{ opp.agency }}</td>
+                    <td>{{ opp.category }}</td>
+                    <td>{{ opp.due_date }}</td>
+                    <td>{% if opp.score %}<span class="fw-bold">{{ opp.score }}</span>{% else %}<span class="text-muted">N/A</span>{% endif %}</td>
+                    <td>
+                        {% if opp.decision == "Select to Bid" %}
+                            <span class="badge bg-success">{{ opp.decision }}</span>
+                        {% elif opp.decision == "Hold" %}
+                            <span class="badge bg-warning text-dark">{{ opp.decision }}</span>
+                        {% elif opp.decision == "Ignore" %}
+                            <span class="badge bg-secondary">{{ opp.decision }}</span>
+                        {% else %}
+                            <span class="text-muted">N/A</span>
+                        {% endif %}
+                    </td>
+                    <td>{{ opp.reason or "—" }}</td>
+                    <td><button class="btn btn-sm btn-outline-primary" onclick="showBreakdown({{ opp.id }})">View</button></td>
+                </tr>
+            {% endfor %}
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Mobile Cards -->
+    <div class="mobile-cards">
+        {% for opp in opportunities %}
+        <div class="card mb-3" data-decision="{{ opp.decision }}" data-id="{{ opp.id }}">
+            <div class="card-body">
+                <h6 class="card-title mb-1"><a href="{{ opp.url }}" target="_blank">{{ opp.title }}</a></h6>
+                <p class="mb-1"><strong>Agency:</strong> {{ opp.agency }}</p>
+                <p class="mb-1"><strong>Category:</strong> {{ opp.category }}</p>
+                <p class="mb-1"><strong>Due Date:</strong> {{ opp.due_date }}</p>
+                <p class="mb-1"><strong>Score:</strong> {% if opp.score %}<span class="fw-bold">{{ opp.score }}</span>{% else %}<span class="text-muted">N/A</span>{% endif %}</p>
+                <p class="mb-2"><strong>Approval:</strong>
+                    {% if opp.decision == "Select to Bid" %}
+                        <span class="badge bg-success">{{ opp.decision }}</span>
+                    {% elif opp.decision == "Hold" %}
+                        <span class="badge bg-warning text-dark">{{ opp.decision }}</span>
+                    {% elif opp.decision == "Ignore" %}
+                        <span class="badge bg-secondary">{{ opp.decision }}</span>
+                    {% else %}
+                        <span class="text-muted">N/A</span>
+                    {% endif %}
+                </p>
+                <button class="btn btn-sm btn-outline-secondary" type="button" data-bs-toggle="collapse" data-bs-target="#collapse{{ opp.id }}">
+                    Show Details
+                </button>
+                <div id="collapse{{ opp.id }}" class="collapse mt-2">
+                    <p class="mb-1"><strong>Reason:</strong> {{ opp.reason or "—" }}</p>
+                    <button class="btn btn-sm btn-outline-primary" onclick="showBreakdown({{ opp.id }})">View Breakdown</button>
+                </div>
+            </div>
+        </div>
         {% endfor %}
-    </table>
+    </div>
+
+    <!-- Breakdown Modal -->
+    <div id="breakdownModal" class="modal" tabindex="-1">
+        <div class="modal-dialog modal-lg">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title">Score Breakdown</h5>
+                    <button type="button" class="btn-close" onclick="hideModal()"></button>
+                </div>
+                <div class="modal-body">
+                    <pre id="breakdownContent" class="bg-light p-3 rounded"></pre>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Mobile Bottom Navbar -->
+<nav class="navbar navbar-dark bg-dark navbar-expand fixed-bottom bottom-navbar">
+    <div class="container-fluid justify-content-around">
+        <div>
+            <span class="badge bg-success">Bid <span id="navCountBid">0</span></span>
+            <span class="badge bg-warning text-dark">Hold <span id="navCountHold">0</span></span>
+            <span class="badge bg-secondary">Ignore <span id="navCountIgnore">0</span></span>
+            <span class="badge bg-light text-dark">Total <span id="navCountTotal">0</span></span>
+        </div>
+        <div class="btn-group dropup">
+            <button class="btn btn-sm btn-outline-info dropdown-toggle" data-bs-toggle="dropdown">Export</button>
+            <ul class="dropdown-menu">
+                <li><a class="dropdown-item" href="/export/csv">CSV</a></li>
+                <li><a class="dropdown-item" href="/export/excel">Excel</a></li>
+            </ul>
+        </div>
+        <button class="btn btn-sm btn-outline-light" onclick="location.reload()">Refresh</button>
+    </div>
+</nav>
+
+<script>
+function showBreakdown(oppId) {
+    axios.get(`/breakdown/${oppId}`)
+        .then(res => {
+            document.getElementById('breakdownContent').innerText = JSON.stringify(res.data, null, 2);
+            let modal = new bootstrap.Modal(document.getElementById('breakdownModal'));
+            modal.show();
+        })
+        .catch(() => alert("No breakdown available."));
+}
+function hideModal() {
+    let modalEl = document.getElementById('breakdownModal');
+    let modal = bootstrap.Modal.getInstance(modalEl);
+    if (modal) modal.hide();
+}
+function filterRows(decision) {
+    let desktopRows = document.querySelectorAll("#oppsTable tbody tr");
+    let cardRows = document.querySelectorAll(".mobile-cards .card");
+    desktopRows.forEach(row => row.style.display = (decision === "all" || row.getAttribute("data-decision") === decision) ? "" : "none");
+    cardRows.forEach(card => card.style.display = (decision === "all" || card.getAttribute("data-decision") === decision) ? "" : "none");
+    updateSummary();
+}
+function updateSummary() {
+    let visible = document.querySelectorAll("#oppsTable tbody tr:not([style*='display: none']), .mobile-cards .card:not([style*='display: none'])");
+    let bid = 0, hold = 0, ignore = 0;
+    visible.forEach(el => {
+        let d = el.getAttribute("data-decision");
+        if (d === "Select to Bid") bid++;
+        else if (d === "Hold") hold++;
+        else if (d === "Ignore") ignore++;
+    });
+    let total = visible.length;
+    // Update desktop summary
+    document.getElementById("countTotal").innerText = total;
+    document.getElementById("countBid").innerText = bid;
+    document.getElementById("countHold").innerText = hold;
+    document.getElementById("countIgnore").innerText = ignore;
+    // Update mobile navbar summary
+    document.getElementById("navCountTotal").innerText = total;
+    document.getElementById("navCountBid").innerText = bid;
+    document.getElementById("navCountHold").innerText = hold;
+    document.getElementById("navCountIgnore").innerText = ignore;
+}
+window.onload = updateSummary;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.2/dist/js/bootstrap.bundle.min.js"></script>
 </body>
 </html>
