@@ -35,12 +35,21 @@ def breakdown(opp_id):
     cur = conn.cursor()
     cur.execute("SELECT breakdown FROM scores WHERE opportunity_id=?", (opp_id,))
     row = cur.fetchone()
-    if not row or not row["breakdown"]:
-        return jsonify({"error": "No breakdown available"}), 404
+
+    if not row:
+        app.logger.warning(f"Breakdown lookup failed: no row for opportunity {opp_id}")
+        return jsonify({"error": f"No score record found for opportunity {opp_id}"}), 404
+
+    if not row["breakdown"]:
+        app.logger.warning(f"Breakdown empty for opportunity {opp_id}")
+        return jsonify({"error": f"Breakdown missing for opportunity {opp_id}"}), 404
+
     try:
         data = json.loads(row["breakdown"])
-    except Exception:
-        return jsonify({"error": "Invalid breakdown format"}), 500
+    except Exception as e:
+        app.logger.error(f"Invalid breakdown JSON for {opp_id}: {e}")
+        return jsonify({"error": f"Invalid breakdown format for {opp_id}"}), 500
+
     return jsonify(data)
 
 @app.route("/export")
@@ -86,4 +95,3 @@ if __name__ == "__main__":
 
     port = int(os.environ.get("PORT", 5000))
     app.run(host="0.0.0.0", port=port, debug=False)
-
