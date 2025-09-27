@@ -1,79 +1,118 @@
 import os
 import sqlite3
-import threading
-import schedule
-import time
-import subprocess
-from flask import Flask, render_template, g
+from flask import Flask, render_template, request, redirect, url_for, jsonify
 
 app = Flask(__name__)
-
 DB_FILE = "opportunities.db"
 
-# === Database Connection ===
+
+# -----------------------------
+# Database Helpers
+# -----------------------------
 def get_db():
-    if "db" not in g:
-        g.db = sqlite3.connect(DB_FILE)
-        g.db.row_factory = sqlite3.Row
-    return g.db
+    conn = sqlite3.connect(DB_FILE)
+    conn.row_factory = sqlite3.Row
+    return conn
 
-@app.teardown_appcontext
-def close_db(exception):
-    db = g.pop("db", None)
-    if db is not None:
-        db.close()
 
-# === Scoring Runner ===
-def run_scoring():
-    try:
-        print("⚙️ [BidSense] Running scoring engine...")
-        result = subprocess.run(
-            ["python", "score_opportunities.py"],
-            check=True,
-            capture_output=True,
-            text=True
+def migrate_opportunities():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS opportunities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            agency TEXT,
+            source TEXT,
+            issue_date TEXT,
+            due_date TEXT,
+            url TEXT,
+            category TEXT,
+            budget REAL,
+            hash TEXT UNIQUE
         )
-        print("✅ [BidSense] Scoring completed successfully.")
-        print(result.stdout)
-    except subprocess.CalledProcessError as e:
-        print("❌ [BidSense] Scoring failed.")
-        print("STDOUT:", e.stdout)
-        print("STDERR:", e.stderr)
+    """)
+    conn.commit()
+    conn.close()
+    print("✅ Migration complete: opportunities table created/verified.")
 
-def schedule_scoring():
-    interval = int(os.getenv("SCORE_INTERVAL_HOURS", "6"))
-    print(f"⏱️ [BidSense] Scheduling scoring every {interval} hour(s).")
-    schedule.every(interval).hours.do(run_scoring)
-    while True:
-        schedule.run_pending()
-        time.sleep(60)
 
-# === Routes ===
+def migrate_approvals():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS approvals (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            opp_id INTEGER NOT NULL,
+            approval TEXT DEFAULT 'Ignore',
+            reason TEXT,
+            updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            FOREIGN KEY (opp_id) REFERENCES opportunities(id)
+        )
+    """)
+    conn.commit()
+    conn.close()
+    print("✅ Migration complete: approvals table created/verified.")
+
+
+# -----------------------------
+# Auto-run migrations at startup
+# -----------------------------
+migrate_opportunities()
+migrate_approvals()
+
+
+# -----------------------------
+# Routes
+# -----------------------------
 @app.route("/")
 def index():
-    db = get_db()
-    cur = db.cursor()
+    conn = get_db()
+    cur = conn.cursor()
     cur.execute("""
         SELECT o.id, o.title, o.agency, o.source, o.issue_date, o.due_date,
-               s.score, s.breakdown, s.updated_at,
-               a.approval
+               o.url, o.category, o.budget,
+               IFNULL(s.score, 0) AS score,
+               a.approval, a.reason
         FROM opportunities o
         LEFT JOIN scores s ON o.id = s.opp_id
         LEFT JOIN approvals a ON o.id = a.opp_id
         ORDER BY o.due_date ASC
     """)
     opportunities = cur.fetchall()
+    conn.close()
     return render_template("index.html", opportunities=opportunities)
 
-# === Startup Hooks ===
+
+@app.route("/approve/<int:opp_id>/<action>")
+def approve(opp_id, action):
+    reason = request.args.get("reason", "")
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("""
+        INSERT INTO approvals (opp_id, approval, reason)
+        VALUES (?, ?, ?)
+        ON CONFLICT(opp_id) DO UPDATE SET
+            approval = excluded.approval,
+            reason = excluded.reason,
+            updated_at = CURRENT_TIMESTAMP
+    """, (opp_id, action, reason))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("index"))
+
+
+@app.route("/api/opportunities")
+def api_opportunities():
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT * FROM opportunities")
+    rows = [dict(row) for row in cur.fetchall()]
+    conn.close()
+    return jsonify(rows)
+
+
 if __name__ == "__main__":
-    # Run once immediately
-    run_scoring()
+    port = int(os.environ.get("PORT", 5000))
+    app.run(host="0.0.0.0", port=port, debug=True)
 
-    # Start background scheduler thread
-    scheduler_thread = threading.Thread(target=schedule_scoring, daemon=True)
-    scheduler_thread.start()
-
-    # Start Flask
-    print("🚀 [BidSense] Flask app starting at http://127.0.0.1:5000")
-    app.run(debug=True, host="0.0.0.0", port=5000)
