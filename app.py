@@ -1,97 +1,79 @@
 import os
 import sqlite3
-from flask import Flask, render_template, request, send_file, redirect, url_for, flash
-from tabulate import tabulate
-from openpyxl import Workbook
-from datetime import datetime
+import threading
+import schedule
+import time
+import subprocess
+from flask import Flask, render_template, g
 
-# Blueprints
-from uploads_bp import uploads_bp
+app = Flask(__name__)
 
 DB_FILE = "opportunities.db"
 
-app = Flask(__name__)
-app.secret_key = "super-secret-key"  # TODO: replace with env var in prod
-
-# Register blueprints
-app.register_blueprint(uploads_bp)
-
+# === Database Connection ===
 def get_db():
-    conn = sqlite3.connect(DB_FILE)
-    conn.row_factory = sqlite3.Row
-    return conn
+    if "db" not in g:
+        g.db = sqlite3.connect(DB_FILE)
+        g.db.row_factory = sqlite3.Row
+    return g.db
 
+@app.teardown_appcontext
+def close_db(exception):
+    db = g.pop("db", None)
+    if db is not None:
+        db.close()
+
+# === Scoring Runner ===
+def run_scoring():
+    try:
+        print("⚙️ [BidSense] Running scoring engine...")
+        result = subprocess.run(
+            ["python", "score_opportunities.py"],
+            check=True,
+            capture_output=True,
+            text=True
+        )
+        print("✅ [BidSense] Scoring completed successfully.")
+        print(result.stdout)
+    except subprocess.CalledProcessError as e:
+        print("❌ [BidSense] Scoring failed.")
+        print("STDOUT:", e.stdout)
+        print("STDERR:", e.stderr)
+
+def schedule_scoring():
+    interval = int(os.getenv("SCORE_INTERVAL_HOURS", "6"))
+    print(f"⏱️ [BidSense] Scheduling scoring every {interval} hour(s).")
+    schedule.every(interval).hours.do(run_scoring)
+    while True:
+        schedule.run_pending()
+        time.sleep(60)
+
+# === Routes ===
 @app.route("/")
 def index():
-    conn = get_db()
-    cur = conn.cursor()
+    db = get_db()
+    cur = db.cursor()
     cur.execute("""
         SELECT o.id, o.title, o.agency, o.source, o.issue_date, o.due_date,
-               o.url, o.category, o.budget,
-               s.score, s.breakdown, a.decision, a.reason
+               s.score, s.breakdown, s.updated_at,
+               a.approval
         FROM opportunities o
-        LEFT JOIN scores s ON o.id = s.opportunity_id
-        LEFT JOIN approvals a ON o.id = a.opportunity_id
+        LEFT JOIN scores s ON o.id = s.opp_id
+        LEFT JOIN approvals a ON o.id = a.opp_id
         ORDER BY o.due_date ASC
     """)
     opportunities = cur.fetchall()
-    conn.close()
     return render_template("index.html", opportunities=opportunities)
 
-@app.route("/export")
-def export():
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        SELECT o.title, o.agency, o.source, o.issue_date, o.due_date,
-               o.url, o.category, o.budget, s.score, a.decision
-        FROM opportunities o
-        LEFT JOIN scores s ON o.id = s.opportunity_id
-        LEFT JOIN approvals a ON o.id = a.opportunity_id
-        ORDER BY o.due_date ASC
-    """)
-    rows = cur.fetchall()
-    conn.close()
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Opportunities"
-
-    headers = ["Title", "Agency", "Source", "Issue Date", "Due Date",
-               "URL", "Category", "Budget", "Score", "Decision"]
-    ws.append(headers)
-
-    for row in rows:
-        ws.append([row["title"], row["agency"], row["source"], row["issue_date"],
-                   row["due_date"], row["url"], row["category"], row["budget"],
-                   row["score"], row["decision"]])
-
-    fname = f"opportunities_{datetime.utcnow().strftime('%Y%m%d%H%M%S')}.xlsx"
-    wb.save(fname)
-    return send_file(fname, as_attachment=True)
-
-@app.route("/approve/<int:opp_id>", methods=["POST"])
-def approve(opp_id):
-    decision = request.form.get("decision")
-    reason = request.form.get("reason", "")
-    now = datetime.utcnow().isoformat()
-
-    conn = get_db()
-    cur = conn.cursor()
-    cur.execute("""
-        INSERT INTO approvals(opportunity_id, decision, reason, decided_at)
-        VALUES(?,?,?,?)
-        ON CONFLICT(opportunity_id) DO UPDATE SET
-            decision=excluded.decision,
-            reason=excluded.reason,
-            decided_at=excluded.decided_at
-    """, (opp_id, decision, reason, now))
-    conn.commit()
-    conn.close()
-
-    flash(f"Opportunity {opp_id} updated to '{decision}'.", "success")
-    return redirect(url_for("index"))
-
+# === Startup Hooks ===
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 5000))
-    app.run(host="0.0.0.0", port=port, debug=True)
+    # Run once immediately
+    run_scoring()
+
+    # Start background scheduler thread
+    scheduler_thread = threading.Thread(target=schedule_scoring, daemon=True)
+    scheduler_thread.start()
+
+    # Start Flask
+    print("🚀 [BidSense] Flask app starting at http://127.0.0.1:5000")
+    app.run(debug=True, host="0.0.0.0", port=5000)
