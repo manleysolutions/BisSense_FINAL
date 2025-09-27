@@ -1,17 +1,9 @@
-# Core dependencies
-Flask
+flask
 requests
 tabulate
-
-# Database
 sqlite-utils
-
-# Scheduling
 schedule
-
-# Parsing / scraping
 beautifulsoup4
 lxml
-
-# Optional: for JSON / data handling
 python-dateutil
+openpyxl
