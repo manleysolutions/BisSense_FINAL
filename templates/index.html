@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>BidSense Opportunities</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        table { border-collapse: collapse; width: 100%; }
+        th, td { border: 1px solid #ddd; padding: 8px; }
+        th { background-color: #f2f2f2; }
+        tr:nth-child(even) { background-color: #f9f9f9; }
+        tr:hover { background-color: #f1f1f1; }
+        .actions form { display: inline; margin: 0; padding: 0; }
+        .notes-box { width: 150px; }
+        .toggle-box { margin-bottom: 20px; padding: 10px; border: 1px solid #ddd; background: #fafafa; }
+    </style>
+</head>
+<body>
+    <h2>BidSense Opportunities</h2>
+
+    <div class="toggle-box">
+        <form method="post" action="/toggle_auto">
+            <strong>Auto-Decision Mode:</strong>
+            {% if auto_mode %}
+                <span style="color: green; font-weight: bold;">ENABLED</span>
+                <button type="submit">Disable</button>
+            {% else %}
+                <span style="color: red; font-weight: bold;">DISABLED</span>
+                <button type="submit">Enable</button>
+            {% endif %}
+        </form>
+    </div>
+
+    <form method="get" action="/">
+        Minimum Score: <input type="number" name="min_score" value="{{ min_score }}">
+        Status:
+        <select name="status">
+            <option value="All" {% if status_filter == "All" %}selected{% endif %}>All</option>
+            <option value="Pending" {% if status_filter == "Pending" %}selected{% endif %}>Pending</option>
+            <option value="Approved" {% if status_filter == "Approved" %}selected{% endif %}>Approved</option>
+            <option value="Rejected" {% if status_filter == "Rejected" %}selected{% endif %}>Rejected</option>
+            <option value="Hold" {% if status_filter == "Hold" %}selected{% endif %}>Hold</option>
+        </select>
+        <input type="submit" value="Apply Filters">
+        <a href="/">Reset</a>
+    </form>
+
+    <table>
+        <tr>
+            <th>Title</th>
+            <th>Agency</th>
+            <th>Due Date</th>
+            <th>Source</th>
+            <th>Score</th>
+            <th>Status</th>
+            <th>Reviewer</th>
+            <th>Decided At</th>
+            <th>Notes</th>
+            <th>Actions</th>
+        </tr>
+        {% for row in rows %}
+        <tr>
+            <td><a href="{{ row['url'] }}" target="_blank">{{ row['title'] }}</a></td>
+            <td>{{ row['agency'] }}</td>
+            <td>{{ row['due_date'] or 'None' }}</td>
+            <td>{{ row['source'] }}</td>
+            <td>{{ row['score'] }}</td>
+            <td>{{ row['status'] }}</td>
+            <td>{{ row['reviewer'] or '' }}</td>
+            <td>{{ row['decided_at'] or '' }}</td>
+            <td>{{ row['notes'] or '' }}</td>
+            <td class="actions">
+                <form action="/decision/{{ row['id'] }}/Approve" method="post">
+                    <input type="text" name="notes" class="notes-box" placeholder="Add notes...">
+                    <button type="submit">Approve</button>
+                </form>
+                <form action="/decision/{{ row['id'] }}/Reject" method="post">
+                    <input type="text" name="notes" class="notes-box" placeholder="Add notes...">
+                    <button type="submit">Reject</button>
+                </form>
+                <form action="/decision/{{ row['id'] }}/Hold" method="post">
+                    <input type="text" name="notes" class="notes-box" placeholder="Add notes...">
+                    <button type="submit">Hold</button>
+                </form>
+            </td>
+        </tr>
+        {% endfor %}
+    </table>
+</body>
+</html>

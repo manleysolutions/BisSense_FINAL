@@ -1,0 +1,38 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ opp['title'] }}</title>
+</head>
+<body>
+    <h1>{{ opp['title'] }}</h1>
+    <p><b>Agency:</b> {{ opp['agency'] }}</p>
+    <p><b>Due Date:</b> {{ opp['due_date'] }}</p>
+    <p><b>Source:</b> {{ opp['source'] }}</p>
+    <p><b>Category:</b> {{ opp['category'] }} ({{ opp['category_weight'] }})</p>
+    <p><b>Description:</b> {{ opp['description'] }}</p>
+
+    {% if score %}
+        <h3>Score: {{ score['score'] }}</h3>
+        <p>Reasons: {{ score['reasons'] }}</p>
+    {% endif %}
+
+    <h3>Decision</h3>
+    {% if approval %}
+        <p>Status: {{ approval['decision'] }} ({{ approval['notes'] }})</p>
+    {% endif %}
+    <form method="post" action="{{ url_for('decision', opp_id=opp['id'], decision='Approved') }}">
+        <input type="text" name="notes" placeholder="Notes">
+        <button type="submit">Approve ✅</button>
+    </form>
+    <form method="post" action="{{ url_for('decision', opp_id=opp['id'], decision='Rejected') }}">
+        <input type="text" name="notes" placeholder="Notes">
+        <button type="submit">Reject ❌</button>
+    </form>
+    <form method="post" action="{{ url_for('decision', opp_id=opp['id'], decision='Hold') }}">
+        <input type="text" name="notes" placeholder="Notes">
+        <button type="submit">Hold ⏸</button>
+    </form>
+
+    <p><a href="{{ url_for('index') }}">← Back</a></p>
+</body>
+</html>
