@@ -2,26 +2,48 @@ import sqlite3
 
 DB_FILE = "opportunities.db"
 
-def migrate_opportunities():
+def migrate():
     conn = sqlite3.connect(DB_FILE)
     cur = conn.cursor()
 
-    # Add missing columns if not exist
-    cur.execute("PRAGMA table_info(opportunities)")
-    existing_cols = [row[1] for row in cur.fetchall()]
+    # Ensure opportunities table has needed columns
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS opportunities (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            title TEXT,
+            agency TEXT,
+            source TEXT,
+            issue_date TEXT,
+            due_date TEXT,
+            url TEXT,
+            category TEXT,
+            budget REAL,
+            hash TEXT UNIQUE
+        )
+    """)
 
-    if "budget" not in existing_cols:
-        cur.execute("ALTER TABLE opportunities ADD COLUMN budget TEXT")
+    # Drop old scores table if schema mismatch exists
+    cur.execute("PRAGMA table_info(scores)")
+    cols = [c[1] for c in cur.fetchall()]
+    if "opportunity_id" not in cols or "approval" not in cols:
+        cur.execute("DROP TABLE IF EXISTS scores")
 
-    if "hash" not in existing_cols:
-        cur.execute("ALTER TABLE opportunities ADD COLUMN hash TEXT UNIQUE")
-
-    if "category" not in existing_cols:
-        cur.execute("ALTER TABLE opportunities ADD COLUMN category TEXT")
+    # Recreate scores table with correct schema
+    cur.execute("""
+        CREATE TABLE IF NOT EXISTS scores (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            opportunity_id INTEGER UNIQUE,
+            score INTEGER,
+            approval TEXT,
+            reason TEXT,
+            breakdown TEXT,
+            FOREIGN KEY(opportunity_id) REFERENCES opportunities(id)
+        )
+    """)
 
     conn.commit()
     conn.close()
-    print("✅ Migration complete: opportunities table updated.")
+    print("✅ Migration complete: opportunities and scores tables updated.")
 
 if __name__ == "__main__":
-    migrate_opportunities()
+    migrate()
