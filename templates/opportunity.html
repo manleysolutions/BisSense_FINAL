@@ -2,118 +2,384 @@
 <html>
 <head>
   <meta charset="utf-8">
-  <title>BidSense – {{ o.title }}</title>
+  <title>{{ o['title'] or 'Opportunity' }}</title>
   <style>
-    body { font-family: system-ui, Arial; margin: 20px; background:#f8f9fa; }
-    h1 { margin:0 0 6px 0; }
-    .sub { color:#666; margin-bottom:14px; }
-    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
-    .card { background:#fff; padding:16px; border-radius:8px; }
-    label { display:block; font-weight:600; margin-top:8px; }
-    input[type=text], textarea { width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; }
-    textarea { height:100px; }
-    .btn { display:inline-block; padding:8px 12px; border-radius:6px; text-decoration:none; background:#007bff; color:#fff; border:0; cursor:pointer; }
-    .btn-secondary { background:#6c757d; }
-    .muted { color:#777; font-size:13px; }
-    table { width:100%; border-collapse: collapse; }
-    th, td { border-bottom:1px solid #eee; padding:8px; vertical-align: top; }
+    body{font-family:system-ui,Arial;margin:20px;background:#f7f7f9;}
+    h1{margin:0 0 6px 0;}
+    .muted{color:#666;font-size:13px;}
+    .badge{padding:2px 8px;border-radius:6px;font-size:12px;background:#eef;border:1px solid #ccd;}
+    .btn{display:inline-block;padding:8px 12px;border-radius:6px;text-decoration:none;background:#0d6efd;color:#fff;border:0;cursor:pointer;}
+    .btn-secondary{background:#6c757d;}
+    .btn-danger{background:#dc3545;}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+    .stack{display:flex;flex-direction:column;gap:18px;}
+    table{width:100%;border-collapse:collapse;}
+    th,td{border-bottom:1px solid #eee;padding:8px;vertical-align:top;}
+    label{display:block;margin-top:10px;font-weight:600;}
+    input[type=text],input[type=url],input[type=number],select,textarea{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;}
+    input[type=file]{width:100%;}
+    textarea{min-height:110px;}
+    .section-title{font-weight:700;margin:6px 0 8px 0;}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .divider{height:1px;background:#eee;margin:14px 0;}
+    .hint{font-size:12px;color:#777;}
   </style>
 </head>
 <body>
-  <a href="{{ url_for('index') }}" class="btn btn-secondary">← Back</a>
-  <h1>{{ o.title or 'Opportunity' }}</h1>
-  <div class="sub">{{ o.agency }} • Due: {{ o.due_date or '—' }} • Status: {{ o.status }}</div>
 
-  <div class="grid">
-    <div class="card">
-      <h3>Summary</h3>
-      <p><strong>Category:</strong> {{ o.category or '—' }}</p>
-      <p><strong>Submission:</strong> {{ o.submission_method or '—' }}</p>
-      <p><strong>ID:</strong> {{ o.external_id or '—' }}</p>
-      <p><strong>Contacts:</strong> {{ o.contacts or '—' }}</p>
-      <p><strong>Q&A Deadline:</strong> {{ o.qna_deadline or '—' }}</p>
-      <p><strong>Pre-Bid:</strong> {{ o.prebid or '—' }} {% if o.prebid_required %} ({{ o.prebid_required }}){% endif %}</p>
-      <p><strong>Set-aside:</strong> {{ o.set_aside or '—' }}</p>
-      <p><strong>Bonding:</strong> {{ o.bonding or '—' }}</p>
-      <p><strong>Insurance:</strong> {{ o.insurance or '—' }}</p>
-      <p><strong>Score:</strong> {{ o.score if o.score is not none else '—' }}</p>
-      <p><strong>Links (URL):</strong> 
-        {% if o.url %}<a href="{{ o.url.split(';')[0] }}" target="_blank">{{ o.url.split(';')[0] }}</a>{% else %}—{% endif %}
-        {% if o.url and ';' in o.url %}{% for u in o.url.split(';')[1:] %}<br><a href="{{ u.strip() }}" target="_blank">{{ u.strip() }}</a>{% endfor %}{% endif %}
-      </p>
-    </div>
+  <a class="btn btn-secondary" href="{{ url_for('index') }}">← Back</a>
 
-    <div class="card">
-      <h3>Engineering Settings</h3>
-      <form method="POST" action="{{ url_for('opportunity_update', opp_id=o.id) }}">
-        <label>System Type</label>
-        <input type="text" name="system_type" value="{{ o.system_type or 'Public Safety DAS' }}">
-        <div class="muted">e.g., Public Safety DAS, Commercial DAS, CBRS/Private LTE</div>
+  <h1 style="margin-top:10px;">{{ o['title'] or 'Opportunity' }}</h1>
+  <div class="muted">
+    {{ o['agency'] or '—' }} • Due: {{ o['due_date'] or '—' }} •
+    <span class="badge">Status: {{ o['status'] }}</span>
+  </div>
 
-        <label>Coverage Goal</label>
-        <input type="text" name="coverage_goal" value="{{ o.coverage_goal or 'Blanket Coverage' }}">
+  {% set cat = (o['category'] or '')|lower %}
+  {% set is_das = 'das' in cat or 'in-building' in cat or 'bda' in cat or 'distributed antenna' in cat %}
+  {% set is_pots = 'pots' in cat or 'analog' in cat %}
+  {% set is_voip = 'voip' in cat or 'telephony' in cat %}
+  {% set is_cctv = 'cctv' in cat or 'camera' in cat or 'alpr' in cat %}
 
-        <label>Vendor / Platform</label>
-        <input type="text" name="vendor" value="{{ o.vendor or 'Nextivity Shield SOLO' }}">
+  <div class="grid" style="margin-top:16px;">
+    <!-- LEFT COLUMN -->
+    <div class="stack">
+      <div class="card">
+        <div class="section-title">Summary</div>
+        <table>
+          <tr><td><strong>Category:</strong></td><td>{{ o['category'] or '—' }}</td></tr>
+          <tr><td><strong>Submission:</strong></td><td>{{ o['submission_method'] or '—' }}</td></tr>
+          <tr><td><strong>ID:</strong></td><td>{{ o['external_id'] or '—' }}</td></tr>
+          <tr><td><strong>Contacts:</strong></td><td>{{ o['contacts'] or '—' }}</td></tr>
+          <tr><td><strong>Q&A Deadline:</strong></td><td>{{ o['qna_deadline'] or '—' }}</td></tr>
+          <tr><td><strong>Pre-Bid:</strong></td>
+              <td>{{ o['prebid'] or '—' }} {% if o['prebid_required'] %} ({{ o['prebid_required'] }}){% endif %}</td></tr>
+          <tr><td><strong>Set-aside:</strong></td><td>{{ o['set_aside'] or '—' }}</td></tr>
+          <tr><td><strong>Bonding:</strong></td><td>{{ o['bonding'] or '—' }}</td></tr>
+          <tr><td><strong>Insurance:</strong></td><td>{{ o['insurance'] or '—' }}</td></tr>
+          <tr><td><strong>Score:</strong></td><td>{{ o['score'] if o['score'] is not none else '—' }}</td></tr>
+          <tr><td><strong>Links (URL):</strong></td><td>{{ o['url'] or '—' }}</td></tr>
+        </table>
 
-        <label>Distributor</label>
-        <input type="text" name="distributor" value="{{ o.distributor or 'GetWireless' }}">
+        <div class="divider"></div>
+        <div class="section-title">Scope (snippet)</div>
+        <div class="muted">{{ (o['scope_summary'] or '—') }}</div>
 
-        <label>Approx. Building Area (sqft)</label>
-        <input type="text" name="area_sqft" value="{{ o.area_sqft or '' }}">
+        <div class="divider"></div>
+        <div class="section-title">Tech Requirements</div>
+        <div class="muted">{{ o['tech_requirements'] or '—' }}</div>
+      </div>
 
-        <label>Scope Summary (editable)</label>
-        <textarea name="scope_summary">{{ o.scope_summary or '' }}</textarea>
+      <!-- Attachments -->
+      <div class="card">
+        <div class="section-title">Files & Attachments</div>
 
-        <label>General Notes</label>
-        <textarea name="rf_notes">{{ o.rf_notes or '' }}</textarea>
-
-        <label>Links (semicolon separated)</label>
-        <input type="text" name="url" value="{{ o.url or '' }}">
-
-        <br><br><button class="btn" type="submit">💾 Save</button>
-      </form>
-    </div>
-
-    <div class="card" style="grid-column: 1 / -1;">
-      <h3>Attachments</h3>
-
-      <h4>Upload File</h4>
-      <form method="POST" action="{{ url_for('opportunity_attach', opp_id=o.id) }}" enctype="multipart/form-data">
-        <input type="file" name="file" required>
-        <input type="text" name="note" placeholder="note (RFP, Floorplan, SOW, etc.)">
-        <button class="btn" type="submit">Upload</button>
-      </form>
-
-      <h4 style="margin-top:16px;">Attach from URL</h4>
-      <form method="POST" action="{{ url_for('opportunity_attach_url', opp_id=o.id) }}">
-        <input type="text" name="url" placeholder="https://… (PDF/DOC/XLS)" style="width:70%" required>
-        <input type="text" name="note" placeholder="note (e.g., RFP main PDF)">
-        <button class="btn" type="submit">Fetch & Attach</button>
-      </form>
-
-      <p class="muted">Accepted: pdf, docx, xlsx, images, txt. Stored under /tmp/uploads/opp_{{ o.id }}/</p>
-
-      <table>
-        <thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Note</th><th>Actions</th></tr></thead>
-        <tbody>
-          {% for a in attachments %}
+        {% if attachments %}
+        <table>
+          <thead><tr><th>File</th><th>Size</th><th>Actions</th></tr></thead>
+          <tbody>
+            {% for a in attachments %}
             <tr>
-              <td>{{ a.original_name }}</td>
-              <td>{{ a.mime }}</td>
-              <td>{{ (a.size//1024) }} KB</td>
-              <td>{{ a.note or '' }}</td>
               <td>
-                <a href="{{ url_for('attachment_download', att_id=a.id) }}">⬇️ Download</a>
-                <a href="{{ url_for('attachment_delete', att_id=a.id) }}" onclick="return confirm('Delete attachment?')">🗑 Delete</a>
-                {% if a.source_url %}<br><span class="muted">src: <a href="{{ a.source_url }}" target="_blank">link</a></span>{% endif %}
+                <div><strong>{{ a['original_name'] }}</strong></div>
+                {% if a['source_url'] %}
+                  <div class="muted">Source: <a href="{{ a['source_url'] }}" target="_blank">{{ a['source_url'] }}</a></div>
+                {% endif %}
+                {% if a['note'] %}<div class="muted">{{ a['note'] }}</div>{% endif %}
+              </td>
+              <td>{{ (a['size'] or 0) | int }} bytes</td>
+              <td>
+                <a class="btn" href="{{ url_for('attachment_download', att_id=a['id']) }}">Download</a>
+                <a class="btn btn-danger" href="{{ url_for('attachment_delete', att_id=a['id']) }}" onclick="return confirm('Delete this file?')">Delete</a>
               </td>
             </tr>
-          {% else %}
-            <tr><td colspan="5" class="muted">No attachments yet. Upload the RFP, floorplans, and SOW here.</td></tr>
-          {% endfor %}
-        </tbody>
-      </table>
+            {% endfor %}
+          </tbody>
+        </table>
+        {% else %}
+          <div class="muted">No files yet. Attach below.</div>
+        {% endif %}
+
+        <div class="divider"></div>
+
+        <form method="POST" enctype="multipart/form-data" action="{{ url_for('opportunity_attach', opp_id=o['id']) }}">
+          <label>Attach a File</label>
+          <input type="file" name="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" required>
+          <label>Note (optional)</label>
+          <input type="text" name="note" placeholder="RFP main PDF / Floorplan / Addendum">
+          <br><br><button class="btn" type="submit">Upload File</button>
+        </form>
+
+        <div class="divider"></div>
+
+        <form method="POST" action="{{ url_for('opportunity_attach_url', opp_id=o['id']) }}">
+          <label>Or Fetch from URL</label>
+          <input type="url" name="url" placeholder="https://example.gov/itb.pdf" required>
+          <label>Note (optional)</label>
+          <input type="text" name="note" placeholder="Floorplan set A, SOW, etc.">
+          <br><br><button class="btn" type="submit">Fetch & Attach</button>
+        </form>
+      </div>
+    </div>
+
+    <!-- RIGHT COLUMN -->
+    <div class="stack">
+
+      <!-- Quick Category Switcher -->
+      <div class="card">
+        <div class="section-title">Category / Panels</div>
+        <form method="POST" action="{{ url_for('opportunity_set_category', opp_id=o['id']) }}">
+          <label>Force Category (affects which panel shows)</label>
+          <select name="category">
+            {% set current = o['category'] or '' %}
+            {% for opt in [
+              'DAS / In-Building Cellular',
+              'POTS Replacement / Analog Modernization',
+              'VoIP / Telephony',
+              'CCTV / Camera / ALPR',
+              'Uploaded RFP'
+            ] %}
+              <option value="{{ opt }}" {% if opt==current %}selected{% endif %}>{{ opt }}</option>
+            {% endfor %}
+          </select>
+          <div class="hint">Use this if the auto-detected category is off.</div>
+          <br><button class="btn" type="submit">Save Category</button>
+        </form>
+      </div>
+
+      {% if training_mode %}
+      <!-- Core fields (TRAINING MODE ONLY) -->
+      <div class="card">
+        <div class="section-title">Core Fields (Training Mode)</div>
+        <form method="POST" action="{{ url_for('opportunity_update_core', opp_id=o['id']) }}">
+          <label>Title</label>
+          <input type="text" name="title" value="{{ o['title'] or '' }}">
+
+          <label>Agency</label>
+          <input type="text" name="agency" value="{{ o['agency'] or '' }}">
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Issue Date</label>
+              <input type="text" name="issue_date" value="{{ o['issue_date'] or '' }}">
+            </div>
+            <div style="flex:1">
+              <label>Due Date</label>
+              <input type="text" name="due_date" value="{{ o['due_date'] or '' }}">
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Q&A Deadline</label>
+              <input type="text" name="qna_deadline" value="{{ o['qna_deadline'] or '' }}">
+            </div>
+            <div style="flex:1">
+              <label>Submission Method</label>
+              <input type="text" name="submission_method" value="{{ o['submission_method'] or '' }}">
+            </div>
+          </div>
+
+          <label>Pre-Bid</label>
+          <input type="text" name="prebid" value="{{ o['prebid'] or '' }}">
+          <label>Pre-Bid Required</label>
+          <input type="text" name="prebid_required" value="{{ o['prebid_required'] or '' }}">
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Set-aside</label>
+              <input type="text" name="set_aside" value="{{ o['set_aside'] or '' }}">
+            </div>
+            <div style="flex:1">
+              <label>Bonding</label>
+              <input type="text" name="bonding" value="{{ o['bonding'] or '' }}">
+            </div>
+            <div style="flex:1">
+              <label>Insurance</label>
+              <input type="text" name="insurance" value="{{ o['insurance'] or '' }}">
+            </div>
+          </div>
+
+          <label>Contacts</label>
+          <input type="text" name="contacts" value="{{ o['contacts'] or '' }}">
+
+          <div class="row">
+            <div style="flex:1">
+              <label>External ID</label>
+              <input type="text" name="external_id" value="{{ o['external_id'] or '' }}">
+            </div>
+            <div style="flex:1">
+              <label>Links (URL)</label>
+              <input type="text" name="url" value="{{ o['url'] or '' }}">
+            </div>
+          </div>
+
+          <label>Category (text)</label>
+          <input type="text" name="category" value="{{ o['category'] or '' }}" placeholder="You can also use the dropdown above.">
+
+          <label>Scope Summary</label>
+          <textarea name="scope_summary">{{ o['scope_summary'] or '' }}</textarea>
+
+          <label>Tech Requirements</label>
+          <input type="text" name="tech_requirements" value="{{ o['tech_requirements'] or '' }}">
+
+          <br><button class="btn" type="submit">Save Core Fields</button>
+        </form>
+      </div>
+      {% endif %}
+
+      <!-- Generic engineering -->
+      <div class="card">
+        <div class="section-title">Engineering (Generic)</div>
+        <form method="POST" action="{{ url_for('opportunity_update', opp_id=o['id']) }}">
+          <label>System Type</label>
+          <input type="text" name="system_type"
+            value="{{ o['system_type'] or ( 'Public Safety DAS' if is_das else '' ) }}"
+            placeholder="e.g., Public Safety DAS, Commercial DAS, POTS Replacement, VoIP">
+
+          <label>Coverage Goal</label>
+          <input type="text" name="coverage_goal" value="{{ o['coverage_goal'] or '' }}" placeholder="Blanket Coverage / targeted areas">
+
+          <label>Vendor / Platform</label>
+          <input type="text" name="vendor"
+            value="{{ o['vendor'] or ( 'Nextivity Shield SOLO' if is_das else '' ) }}"
+            placeholder="{{ 'Nextivity Shield SOLO' if is_das else 'e.g., Teams-based cloud PBX, Cisco, etc.' }}">
+
+          <label>Distributor</label>
+          <input type="text" name="distributor" value="{{ o['distributor'] or '' }}" placeholder="{{ 'GetWireless/Talley/Tessco' if is_das else '' }}">
+
+          <label>Approx. Building Area (sqft)</label>
+          <input type="number" step="0.01" name="area_sqft" value="{{ o['area_sqft'] or '' }}">
+
+          <label>General Notes</label>
+          <textarea name="rf_notes">{{ o['rf_notes'] or '' }}</textarea>
+
+          <br><button class="btn" type="submit">Save Engineering</button>
+        </form>
+      </div>
+
+      <!-- Vertical: DAS / Public Safety -->
+      {% if is_das %}
+      {% set das = (o.extra.get('das') if o.extra else {}) or {} %}
+      <div class="card">
+        <div class="section-title">DAS / Public Safety – Mini BOM</div>
+        <form method="POST" action="{{ url_for('opportunity_update_das', opp_id=o['id']) }}">
+          <label>Booster Model</label>
+          <input type="text" name="booster_model" value="{{ das.get('booster_model','Nextivity Shield SOLO') }}">
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Indoor Antennas (qty)</label>
+              <input type="text" name="antennas_count" value="{{ das.get('antennas_count','') }}">
+            </div>
+            <div style="flex:1">
+              <label>Splitters</label>
+              <input type="text" name="splitters" value="{{ das.get('splitters','') }}">
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Couplers</label>
+              <input type="text" name="couplers" value="{{ das.get('couplers','') }}">
+            </div>
+            <div style="flex:1">
+              <label>Donor Antenna</label>
+              <input type="text" name="donor_antenna" value="{{ das.get('donor_antenna','') }}">
+            </div>
+          </div>
+
+          <label>Coax Type</label>
+          <input type="text" name="coax_type" value="{{ das.get('coax_type','LMR400') }}">
+
+          <div class="hint">Tip: we’ll pull MSRP from SureCall/WeBoost/Nextivity catalogs and apply target margins later.</div>
+          <br><button class="btn" type="submit">Save DAS BOM</button>
+        </form>
+      </div>
+      {% endif %}
+
+      <!-- Vertical: POTS Replacement -->
+      {% if is_pots %}
+      {% set pots = (o.extra.get('pots') if o.extra else {}) or {} %}
+      <div class="card">
+        <div class="section-title">POTS Replacement</div>
+        <form method="POST" action="{{ url_for('opportunity_update_pots', opp_id=o['id']) }}">
+          <div class="row">
+            <div style="flex:1">
+              <label>Total Lines</label>
+              <input type="text" name="lines_total" value="{{ pots.get('lines_total','') }}">
+            </div>
+            <div style="flex:1">
+              <label>Devices (elevators/alarms/fax)</label>
+              <input type="text" name="devices" value="{{ pots.get('devices','') }}">
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Provider</label>
+              <input type="text" name="provider" value="{{ pots.get('provider','') }}">
+            </div>
+            <div style="flex:1">
+              <label>Battery Backup (hrs)</label>
+              <input type="text" name="battery_hours" value="{{ pots.get('battery_hours','') }}">
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Monthly Target ($)</label>
+              <input type="text" name="monthly_target" value="{{ pots.get('monthly_target','') }}">
+            </div>
+            <div style="flex:1">
+              <label>Site Walk Fee</label>
+              <input type="text" name="site_walk_fee" value="{{ pots.get('site_walk_fee','') }}">
+            </div>
+          </div>
+
+          <label>Travel Estimate</label>
+          <input type="text" name="travel_estimate" value="{{ pots.get('travel_estimate','') }}">
+
+          <br><button class="btn" type="submit">Save POTS</button>
+        </form>
+      </div>
+      {% endif %}
+
+      <!-- Vertical: VoIP -->
+      {% if is_voip %}
+      {% set voip = (o.extra.get('voip') if o.extra else {}) or {} %}
+      <div class="card">
+        <div class="section-title">VoIP / Telephony</div>
+        <form method="POST" action="{{ url_for('opportunity_update_voip', opp_id=o['id']) }}">
+          <div class="row">
+            <div style="flex:1">
+              <label>Seats / Handsets</label>
+              <input type="text" name="seats" value="{{ voip.get('seats','') }}">
+            </div>
+            <div style="flex:1">
+              <label>Numbers to Port</label>
+              <input type="text" name="numbers_port" value="{{ voip.get('numbers_port','') }}">
+            </div>
+          </div>
+
+          <div class="row">
+            <div style="flex:1">
+              <label>Analog Support (ATA count)</label>
+              <input type="text" name="analog_support" value="{{ voip.get('analog_support','') }}">
+            </div>
+            <div style="flex:1">
+              <label>Provider Preference</label>
+              <input type="text" name="provider_pref" value="{{ voip.get('provider_pref','') }}" placeholder="e.g., Teams, Zoom, 8x8, etc.">
+            </div>
+          </div>
+
+          <div class="hint">We can auto-build BOMs and seat pricing once the provider is chosen.</div>
+          <br><button class="btn" type="submit">Save VoIP</button>
+        </form>
+      </div>
+      {% endif %}
+
     </div>
   </div>
 </body>

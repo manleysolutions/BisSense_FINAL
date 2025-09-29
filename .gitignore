@@ -1,22 +1,32 @@
-# Python
+﻿# Python
 __pycache__/
 *.pyc
-
-# Local DB + archives
-opportunities.db
-archive/
-
-# Uploads (Render uses /tmp, but ignore any local)
-tmp/
-temp/
-uploads/
-*.log
-
-# venvs
+*.pyo
+*.pyd
 .venv/
 venv/
 env/
 
-# OS cruft
+# Local data / artifacts
+opportunities.db
+archive/
+tmp/
+uploads/
+tmp_uploads/
+*.sqlite
+*.db
+
+# Our app scratch
+/tmp/
+!/tmp/keep
+/opportunity_uploads/
+!/opportunity_uploads/README.keep
+
+# OS/editor
 .DS_Store
 Thumbs.db
+.vscode/
+.idea/
+
+# Secrets
+.env

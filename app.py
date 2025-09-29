@@ -13,7 +13,7 @@ from flask import (
 from werkzeug.utils import secure_filename
 
 app = Flask(__name__)
-app.secret_key = "supersecret"  # replace in production
+app.secret_key = "supersecret"  # change for production
 
 DB_FILE = "opportunities.db"
 
@@ -46,6 +46,14 @@ def ensure_opp_dir(opp_id: int) -> str:
     os.makedirs(folder, exist_ok=True)
     return folder
 
+def _parse_json(s, default=None):
+    if not s:
+        return default if default is not None else {}
+    try:
+        return json.loads(s)
+    except Exception:
+        return default if default is not None else {}
+
 
 # --------------------------
 # DB init + seed
@@ -77,13 +85,15 @@ def init_db():
             scope_summary TEXT,
             tech_requirements TEXT,
             external_id TEXT,
-            -- Phase 3.1 engineering fields
+            -- generic engineering
             system_type TEXT,
             coverage_goal TEXT,
             vendor TEXT,
             distributor TEXT,
             area_sqft REAL,
-            rf_notes TEXT
+            rf_notes TEXT,
+            -- vertical-smart data bag
+            extra_json TEXT
         )
     """)
     cur.execute("""
@@ -125,6 +135,7 @@ def init_db():
         ("distributor", "TEXT"),
         ("area_sqft", "REAL"),
         ("rf_notes", "TEXT"),
+        ("extra_json", "TEXT"),
     ]:
         try:
             cur.execute(f"ALTER TABLE opportunities ADD COLUMN {col} {ctype}")
@@ -168,10 +179,10 @@ def seed_training():
                 (title, agency, source, issue_date, due_date, url, category, budget, status,
                  contacts, submission_method, qna_deadline, prebid, prebid_required,
                  set_aside, bonding, insurance, scope_summary, tech_requirements, external_id,
-                 system_type, coverage_goal, vendor, distributor, area_sqft, rf_notes)
+                 system_type, coverage_goal, vendor, distributor, area_sqft, rf_notes, extra_json)
                 VALUES (?, ?, 'Training Dataset', ?, ?, '', ?, ?, 'Open',
                         ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-                        NULL, NULL, NULL, NULL, NULL, NULL)
+                        NULL, NULL, NULL, NULL, NULL, NULL, NULL)
             """, (
                 item.get("title"), item.get("agency"),
                 item.get("issue_date"), item.get("due_date"),
@@ -253,12 +264,10 @@ def _money(text):
 
 def _category(text):
     t = (text or "").lower()
-    if re.search(r"\b(das|distributed antenna|neutral[- ]host)\b", t): return "DAS / In-Building Cellular"
+    if re.search(r"\b(das|distributed antenna|neutral[- ]host|bda|public safety)\b", t): return "DAS / In-Building Cellular"
     if re.search(r"\b(pots[- ]?in[- ]a[- ]box|pots replacement|analog line|fxs|ata)\b", t): return "POTS Replacement / Analog Modernization"
-    if re.search(r"\b(voip|pbx|sip|teams voice)\b", t): return "VoIP / Telephony"
+    if re.search(r"\b(voip|pbx|sip|teams voice|telephony)\b", t): return "VoIP / Telephony"
     if re.search(r"\b(cctv|video surveillance|camera|alpr)\b", t): return "CCTV / Camera / ALPR"
-    if re.search(r"\b(server|compute|storage|poweredge)\b", t): return "Server / Compute"
-    if re.search(r"\b(wifi|wireless|lan|access point)\b", t): return "Network / Wireless"
     return "Uploaded RFP"
 
 
@@ -287,9 +296,7 @@ def parse_rfp(filepath):
         r"(CC[#\- ]\d{2,}[- ]\d+)", r"(\d{5}25R\d+)", r"(W\d{4,}[A-Z0-9]+)"
     ], text)
 
-    title = _find([r"(RFP|RFB|RFQ|ITB).{0,12}[:\- ]?\s*(.{6,140})"], text, re.I)
-    if not title:
-        title = lines[0][:120] if lines else "Uploaded RFP"
+    title = _find([r"(RFP|RFB|RFQ|ITB).{0,12}[:\- ]?\s*(.{6,140})"], text, re.I) or (lines[0][:120] if lines else "Uploaded RFP")
 
     agency = _find([
         r"(City of [A-Z][A-Za-z .'-]+)", r"(County of [A-Z][A-Za-z .'-]+)",
@@ -305,15 +312,15 @@ def parse_rfp(filepath):
     qna_deadline = _find([r"(Q&A Deadline|Questions Due|Inquiry Deadline)[: ]+" + date_pat], text)
 
     submission_method = "Not Specified"
-    for portal in ["BidNet", "PlanetBids", "DemandStar", "Public Purchase", "SAM.gov", "email", "portal", "sealed bid", "hand delivery"]:
+    for portal in ["BidNet", "PlanetBids", "DemandStar", "Public Purchase", "SAM.gov", "email", "portal", "sealed bid", "hand delivery", "electronic"]:
         if portal.lower() in lower:
-            submission_method = portal
+            submission_method = portal.capitalize()
             break
 
     prebid = _find([r"(Pre[- ]?(bid|proposal)[^.\n]{0,120})"], text)
     prebid_required = "Mandatory" if ("mandatory" in lower and prebid) else ("Optional" if prebid else "N/A")
 
-    set_aside = _find([r"(8[ -]?a|WOSB|SDVOSB|MBE|WBE|DBE|Small Business Set[- ]Aside)"], text) or "None"
+    set_aside = _find([r"(8[ -]?a|WOSB|SDVOSB|MBE|WBE|DBE|Section 3|Small Business Set[- ]Aside)"], text) or "None"
     bonding = "Required" if re.search(r"(bid bond|performance bond|payment bond)", lower) else "Not Mentioned"
     insurance = "Required" if "insurance" in lower else "Not Mentioned"
 
@@ -326,12 +333,9 @@ def parse_rfp(filepath):
     scope = _find([r"(Scope of Work|Project Description|Summary)[:\n]\s*(.{80,600})"], text, re.I | re.S) or "Not parsed"
 
     tech_bits = []
-    if "das" in lower or "distributed antenna" in lower or "neutral host" in lower: tech_bits.append("DAS / Neutral Host")
+    if "das" in lower or "distributed antenna" in lower or "neutral host" in lower or "bda" in lower: tech_bits.append("DAS / Neutral Host")
     if "pots" in lower or "analog" in lower or "fxs" in lower or "ata" in lower: tech_bits.append("POTS / Analog")
-    if "voip" in lower or "pbx" in lower or "sip" in lower or "teams" in lower: tech_bits.append("VoIP / Telephony")
-    if "cctv" in lower or "camera" in lower or "alpr" in lower: tech_bits.append("CCTV/Camera/ALPR")
-    if "wifi" in lower or "wireless" in lower or "access point" in lower: tech_bits.append("Wireless / Wi-Fi")
-    if "server" in lower or "storage" in lower or "poweredge" in lower: tech_bits.append("Server / Compute")
+    if "voip" in lower or "pbx" in lower or "sip" in lower or "teams" in lower or "telephony" in lower: tech_bits.append("VoIP / Telephony")
     tech_requirements = ", ".join(dict.fromkeys(tech_bits)) if tech_bits else "Not parsed"
 
     category = _category(text)
@@ -359,10 +363,10 @@ def ingest_opportunity(item, score=None):
         (title, agency, source, issue_date, due_date, url, category, budget, status,
          contacts, submission_method, qna_deadline, prebid, prebid_required,
          set_aside, bonding, insurance, scope_summary, tech_requirements, external_id,
-         system_type, coverage_goal, vendor, distributor, area_sqft, rf_notes)
+         system_type, coverage_goal, vendor, distributor, area_sqft, rf_notes, extra_json)
         VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Open',
                 ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 
-                NULL, NULL, NULL, NULL, NULL, NULL)
+                NULL, NULL, NULL, NULL, NULL, NULL, NULL)
     """, (
         item.get("title"), item.get("agency"), item.get("source", "Manual Upload"),
         item.get("issue_date"), item.get("due_date"), item.get("url", ""),
@@ -474,7 +478,7 @@ def upload_rfp():
             try:
                 shutil.move(path, dest)
             except Exception:
-                dest = path  # fallback: keep original path
+                dest = path  # fallback
             conn = get_db()
             cur = conn.cursor()
             cur.execute("""
@@ -591,7 +595,7 @@ def update_status(opp_id, status):
     cur.execute("UPDATE opportunities SET status=? WHERE id=?", (status, opp_id))
     conn.commit()
     conn.close()
-    return redirect(url_for("index", _anchor=f"row-{opp_id}"))
+    return redirect(url_for("index"))
 
 # ---------- Delete ----------
 @app.route("/delete/<int:opp_id>")
@@ -644,19 +648,123 @@ def opportunity_detail(opp_id):
     atts = _list_attachments(opp_id)
     if not opp.get("system_type") and ("public safety" in (opp.get("category","").lower())):
         opp["system_type"] = "Public Safety DAS"
-    return render_template("opportunity.html", o=opp, attachments=atts)
+    # parse extra_json for template convenience
+    opp["extra"] = _parse_json(opp.get("extra_json"))
+    return render_template("opportunity.html", o=opp, attachments=atts, training_mode=session.get("training_mode", True))
 
-@app.route("/opportunity/<int:opp_id>/update", methods=["POST"])
-def opportunity_update(opp_id):
-    fields = ["system_type","coverage_goal","vendor","distributor","area_sqft","rf_notes","url","scope_summary"]
+# Core fields editor (Training mode)
+@app.route("/opportunity/<int:opp_id>/update_core", methods=["POST"])
+def opportunity_update_core(opp_id):
+    fields = [
+        "title","agency","issue_date","due_date","submission_method","qna_deadline",
+        "prebid","prebid_required","set_aside","bonding","insurance","contacts",
+        "category","external_id","url","scope_summary","tech_requirements"
+    ]
     values = [request.form.get(f) for f in fields]
     conn = get_db()
     cur = conn.cursor()
     cur.execute(f"""
         UPDATE opportunities
-        SET system_type=?, coverage_goal=?, vendor=?, distributor=?, area_sqft=?, rf_notes=?, url=?, scope_summary=?
+        SET title=?, agency=?, issue_date=?, due_date=?, submission_method=?, qna_deadline=?,
+            prebid=?, prebid_required=?, set_aside=?, bonding=?, insurance=?, contacts=?,
+            category=?, external_id=?, url=?, scope_summary=?, tech_requirements=?
         WHERE id=?
     """, (*values, opp_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("opportunity_detail", opp_id=opp_id))
+
+# Engineering generic editor
+@app.route("/opportunity/<int:opp_id>/update", methods=["POST"])
+def opportunity_update(opp_id):
+    fields = ["system_type","coverage_goal","vendor","distributor","area_sqft","rf_notes"]
+    values = [request.form.get(f) for f in fields]
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute(f"""
+        UPDATE opportunities
+        SET system_type=?, coverage_goal=?, vendor=?, distributor=?, area_sqft=?, rf_notes=?
+        WHERE id=?
+    """, (*values, opp_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("opportunity_detail", opp_id=opp_id))
+
+# Vertical: DAS / Public Safety (mini-BOM)
+@app.route("/opportunity/<int:opp_id>/update_das", methods=["POST"])
+def opportunity_update_das(opp_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT extra_json FROM opportunities WHERE id=?", (opp_id,))
+    row = cur.fetchone()
+    data = _parse_json(row["extra_json"])
+    das = data.get("das", {})
+    das.update({
+        "booster_model": request.form.get("booster_model") or "Nextivity Shield SOLO",
+        "antennas_count": request.form.get("antennas_count") or "",
+        "splitters": request.form.get("splitters") or "",
+        "couplers": request.form.get("couplers") or "",
+        "donor_antenna": request.form.get("donor_antenna") or "",
+        "coax_type": request.form.get("coax_type") or "LMR400",
+    })
+    data["das"] = das
+    cur.execute("UPDATE opportunities SET extra_json=? WHERE id=?", (json.dumps(data), opp_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("opportunity_detail", opp_id=opp_id))
+
+# Vertical: POTS
+@app.route("/opportunity/<int:opp_id>/update_pots", methods=["POST"])
+def opportunity_update_pots(opp_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT extra_json FROM opportunities WHERE id=?", (opp_id,))
+    row = cur.fetchone()
+    data = _parse_json(row["extra_json"])
+    pots = data.get("pots", {})
+    pots.update({
+        "lines_total": request.form.get("lines_total") or "",
+        "devices": request.form.get("devices") or "",
+        "provider": request.form.get("provider") or "",
+        "battery_hours": request.form.get("battery_hours") or "",
+        "monthly_target": request.form.get("monthly_target") or "",
+        "site_walk_fee": request.form.get("site_walk_fee") or "",
+        "travel_estimate": request.form.get("travel_estimate") or "",
+    })
+    data["pots"] = pots
+    cur.execute("UPDATE opportunities SET extra_json=? WHERE id=?", (json.dumps(data), opp_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("opportunity_detail", opp_id=opp_id))
+
+# Vertical: VoIP
+@app.route("/opportunity/<int:opp_id>/update_voip", methods=["POST"])
+def opportunity_update_voip(opp_id):
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("SELECT extra_json FROM opportunities WHERE id=?", (opp_id,))
+    row = cur.fetchone()
+    data = _parse_json(row["extra_json"])
+    voip = data.get("voip", {})
+    voip.update({
+        "seats": request.form.get("seats") or "",
+        "numbers_port": request.form.get("numbers_port") or "",
+        "analog_support": request.form.get("analog_support") or "",
+        "provider_pref": request.form.get("provider_pref") or "",
+    })
+    data["voip"] = voip
+    cur.execute("UPDATE opportunities SET extra_json=? WHERE id=?", (json.dumps(data), opp_id))
+    conn.commit()
+    conn.close()
+    return redirect(url_for("opportunity_detail", opp_id=opp_id))
+
+# ---------- Category switcher ----------
+@app.route("/opportunity/<int:opp_id>/set_category", methods=["POST"])
+def opportunity_set_category(opp_id):
+    cat = (request.form.get("category") or "").strip()
+    conn = get_db()
+    cur = conn.cursor()
+    cur.execute("UPDATE opportunities SET category=? WHERE id=?", (cat, opp_id))
     conn.commit()
     conn.close()
     return redirect(url_for("opportunity_detail", opp_id=opp_id))
