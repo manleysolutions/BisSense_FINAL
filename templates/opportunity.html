@@ -1,0 +1,120 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>BidSense – {{ o.title }}</title>
+  <style>
+    body { font-family: system-ui, Arial; margin: 20px; background:#f8f9fa; }
+    h1 { margin:0 0 6px 0; }
+    .sub { color:#666; margin-bottom:14px; }
+    .grid { display:grid; grid-template-columns: 1fr 1fr; gap:16px; }
+    .card { background:#fff; padding:16px; border-radius:8px; }
+    label { display:block; font-weight:600; margin-top:8px; }
+    input[type=text], textarea { width:100%; padding:8px; border:1px solid #ddd; border-radius:6px; }
+    textarea { height:100px; }
+    .btn { display:inline-block; padding:8px 12px; border-radius:6px; text-decoration:none; background:#007bff; color:#fff; border:0; cursor:pointer; }
+    .btn-secondary { background:#6c757d; }
+    .muted { color:#777; font-size:13px; }
+    table { width:100%; border-collapse: collapse; }
+    th, td { border-bottom:1px solid #eee; padding:8px; vertical-align: top; }
+  </style>
+</head>
+<body>
+  <a href="{{ url_for('index') }}" class="btn btn-secondary">← Back</a>
+  <h1>{{ o.title or 'Opportunity' }}</h1>
+  <div class="sub">{{ o.agency }} • Due: {{ o.due_date or '—' }} • Status: {{ o.status }}</div>
+
+  <div class="grid">
+    <div class="card">
+      <h3>Summary</h3>
+      <p><strong>Category:</strong> {{ o.category or '—' }}</p>
+      <p><strong>Submission:</strong> {{ o.submission_method or '—' }}</p>
+      <p><strong>ID:</strong> {{ o.external_id or '—' }}</p>
+      <p><strong>Contacts:</strong> {{ o.contacts or '—' }}</p>
+      <p><strong>Q&A Deadline:</strong> {{ o.qna_deadline or '—' }}</p>
+      <p><strong>Pre-Bid:</strong> {{ o.prebid or '—' }} {% if o.prebid_required %} ({{ o.prebid_required }}){% endif %}</p>
+      <p><strong>Set-aside:</strong> {{ o.set_aside or '—' }}</p>
+      <p><strong>Bonding:</strong> {{ o.bonding or '—' }}</p>
+      <p><strong>Insurance:</strong> {{ o.insurance or '—' }}</p>
+      <p><strong>Score:</strong> {{ o.score if o.score is not none else '—' }}</p>
+      <p><strong>Links (URL):</strong> 
+        {% if o.url %}<a href="{{ o.url.split(';')[0] }}" target="_blank">{{ o.url.split(';')[0] }}</a>{% else %}—{% endif %}
+        {% if o.url and ';' in o.url %}{% for u in o.url.split(';')[1:] %}<br><a href="{{ u.strip() }}" target="_blank">{{ u.strip() }}</a>{% endfor %}{% endif %}
+      </p>
+    </div>
+
+    <div class="card">
+      <h3>Engineering Settings</h3>
+      <form method="POST" action="{{ url_for('opportunity_update', opp_id=o.id) }}">
+        <label>System Type</label>
+        <input type="text" name="system_type" value="{{ o.system_type or 'Public Safety DAS' }}">
+        <div class="muted">e.g., Public Safety DAS, Commercial DAS, CBRS/Private LTE</div>
+
+        <label>Coverage Goal</label>
+        <input type="text" name="coverage_goal" value="{{ o.coverage_goal or 'Blanket Coverage' }}">
+
+        <label>Vendor / Platform</label>
+        <input type="text" name="vendor" value="{{ o.vendor or 'Nextivity Shield SOLO' }}">
+
+        <label>Distributor</label>
+        <input type="text" name="distributor" value="{{ o.distributor or 'GetWireless' }}">
+
+        <label>Approx. Building Area (sqft)</label>
+        <input type="text" name="area_sqft" value="{{ o.area_sqft or '' }}">
+
+        <label>Scope Summary (editable)</label>
+        <textarea name="scope_summary">{{ o.scope_summary or '' }}</textarea>
+
+        <label>General Notes</label>
+        <textarea name="rf_notes">{{ o.rf_notes or '' }}</textarea>
+
+        <label>Links (semicolon separated)</label>
+        <input type="text" name="url" value="{{ o.url or '' }}">
+
+        <br><br><button class="btn" type="submit">💾 Save</button>
+      </form>
+    </div>
+
+    <div class="card" style="grid-column: 1 / -1;">
+      <h3>Attachments</h3>
+
+      <h4>Upload File</h4>
+      <form method="POST" action="{{ url_for('opportunity_attach', opp_id=o.id) }}" enctype="multipart/form-data">
+        <input type="file" name="file" required>
+        <input type="text" name="note" placeholder="note (RFP, Floorplan, SOW, etc.)">
+        <button class="btn" type="submit">Upload</button>
+      </form>
+
+      <h4 style="margin-top:16px;">Attach from URL</h4>
+      <form method="POST" action="{{ url_for('opportunity_attach_url', opp_id=o.id) }}">
+        <input type="text" name="url" placeholder="https://… (PDF/DOC/XLS)" style="width:70%" required>
+        <input type="text" name="note" placeholder="note (e.g., RFP main PDF)">
+        <button class="btn" type="submit">Fetch & Attach</button>
+      </form>
+
+      <p class="muted">Accepted: pdf, docx, xlsx, images, txt. Stored under /tmp/uploads/opp_{{ o.id }}/</p>
+
+      <table>
+        <thead><tr><th>Name</th><th>Type</th><th>Size</th><th>Note</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for a in attachments %}
+            <tr>
+              <td>{{ a.original_name }}</td>
+              <td>{{ a.mime }}</td>
+              <td>{{ (a.size//1024) }} KB</td>
+              <td>{{ a.note or '' }}</td>
+              <td>
+                <a href="{{ url_for('attachment_download', att_id=a.id) }}">⬇️ Download</a>
+                <a href="{{ url_for('attachment_delete', att_id=a.id) }}" onclick="return confirm('Delete attachment?')">🗑 Delete</a>
+                {% if a.source_url %}<br><span class="muted">src: <a href="{{ a.source_url }}" target="_blank">link</a></span>{% endif %}
+              </td>
+            </tr>
+          {% else %}
+            <tr><td colspan="5" class="muted">No attachments yet. Upload the RFP, floorplans, and SOW here.</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</body>
+</html>

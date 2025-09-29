@@ -1,142 +1,112 @@
-<!DOCTYPE html>
-<html lang="en">
+<!doctype html>
+<html>
 <head>
-    <meta charset="UTF-8">
-    <title>BidSense Opportunities</title>
-    <style>
-        body { font-family: Arial, sans-serif; margin: 20px; }
-        table { border-collapse: collapse; width: 100%; margin-top: 20px; }
-        th, td { border: 1px solid #ccc; padding: 8px; text-align: left; }
-        th { background: #f2f2f2; }
-        h1 { margin-bottom: 0; }
-        .score { font-weight: bold; }
-        .high { color: green; }
-        .medium { color: orange; }
-        .low { color: red; }
-        a.btn { display: inline-block; margin: 10px 5px 0 0; padding: 6px 12px; background: #007bff; color: white; text-decoration: none; border-radius: 4px; }
-        a.btn:hover { background: #0056b3; }
-        .filters { margin-top: 15px; }
-        .filters a { margin-right: 10px; padding: 6px 12px; background: #6c757d; color: white; text-decoration: none; border-radius: 4px; }
-        .filters a.active { background: #007bff; }
-        .filters a:hover { background: #5a6268; }
-        .banner { padding: 10px; color: white; font-weight: bold; margin-top: 10px; border-radius: 5px; }
-        .banner.training { background: orange; }
-        .banner.auto { background: green; }
-        .modal { display: none; position: fixed; z-index: 1000; padding-top: 60px; left: 0; top: 0; width: 100%; height: 100%; overflow: auto;
-                 background-color: rgba(0,0,0,0.5); }
-        .modal-content { background-color: #fff; margin: auto; padding: 20px; border: 1px solid #888; width: 70%; border-radius: 6px; }
-        .close { color: #aaa; float: right; font-size: 28px; font-weight: bold; cursor: pointer; }
-        .close:hover { color: black; }
-    </style>
+  <meta charset="utf-8">
+  <title>BidSense – Opportunities</title>
+  <style>
+    body { font-family: system-ui, Arial; margin: 20px; background:#f8f9fa; }
+    h1 { margin-bottom: 10px; }
+    table { width: 100%; border-collapse: collapse; background:#fff; }
+    th, td { border-bottom: 1px solid #ddd; padding: 8px; vertical-align: top; }
+    th { background:#f1f3f5; text-align:left; }
+    .actions a { margin-right: 8px; font-size:13px; }
+    .badge { padding: 2px 8px; border-radius: 6px; font-size: 12px; display:inline-block; }
+    .open { background: #e7f7ee; }
+    .approved { background:#e8f0ff; }
+    .won { background: #e6ffe9; }
+    .lost { background: #ffe9e9; }
+    .banner { padding:10px 14px; border-radius:8px; display:inline-block; margin-bottom:12px; font-weight:600; }
+    .training { background:#fff3cd; }
+    .auto { background:#d4edda; }
+    .btn { display:inline-block; padding:6px 12px; border-radius:4px; text-decoration:none; font-size:14px; }
+    .btn-upload { background:#28a745; color:#fff; }
+    .btn-toggle { background:#007bff; color:#fff; margin-left:10px; }
+    a { color:#1a73e8; }
+    .just-updated { background: #fff3cd !important; transition: background 0.8s; }
+  </style>
 </head>
 <body>
-    <h1>BidSense Opportunities</h1>
+  <h1>BidSense Opportunities</h1>
 
-    <a href="{{ url_for('upload_rfp') }}" class="btn" style="background:#28a745;">📤 Upload RFP</a>
-    <a href="{{ url_for('toggle_mode') }}" class="btn" 
-       style="background: {{ 'orange' if session.get('training_mode', True) else 'green' }};">
-       {{ 'Switch to Auto Mode' if session.get('training_mode', True) else 'Switch to Training Mode' }}
-    </a>
+  <div class="banner {{ 'training' if training_mode else 'auto' }}">
+    {{ 'Training Mode Active — RFPs require human review' if training_mode else 'Auto Mode Active — RFPs are ingested automatically' }}
+  </div>
+  <br>
+  <a href="{{ url_for('upload_rfp') }}" class="btn btn-upload">📤 Upload RFP</a>
+  <a href="{{ url_for('toggle_mode') }}" class="btn btn-toggle">
+    {{ 'Switch to Auto Mode' if training_mode else 'Switch to Training Mode' }}
+  </a>
 
-    <!-- Mode Banner -->
-    {% if session.get('training_mode', True) %}
-        <div class="banner training">⚠ Training Mode Active — RFPs require human review</div>
-    {% else %}
-        <div class="banner auto">✅ Auto Mode Active — RFPs are ingested automatically</div>
-    {% endif %}
+  <p>Filter:
+    <a href="{{ url_for('index') }}">All</a> |
+    <a href="{{ url_for('index', status='Open') }}">Open</a> |
+    <a href="{{ url_for('index', status='Approved') }}">Approved</a> |
+    <a href="{{ url_for('index', status='Won') }}">Won</a> |
+    <a href="{{ url_for('index', status='Lost') }}">Lost</a>
+  </p>
 
-    <!-- Filter Bar -->
-    <div class="filters">
-        <a href="{{ url_for('index') }}"{% if not request.args.get('status') %} class="active"{% endif %}>All</a>
-        <a href="{{ url_for('index', status='Open') }}"{% if request.args.get('status') == 'Open' %} class="active"{% endif %}>Open</a>
-        <a href="{{ url_for('index', status='Won') }}"{% if request.args.get('status') == 'Won' %} class="active"{% endif %}>Won</a>
-        <a href="{{ url_for('index', status='Closed') }}"{% if request.args.get('status') == 'Closed' %} class="active"{% endif %}>Closed</a>
-        <a href="{{ url_for('index', status='Lost') }}"{% if request.args.get('status') == 'Lost' %} class="active"{% endif %}>Lost</a>
-    </div>
+  <table>
+    <thead>
+      <tr>
+        <th>Title / Agency</th>
+        <th>Due / Q&A / Pre-Bid</th>
+        <th>Category / Submission</th>
+        <th>Scope (snippet)</th>
+        <th>Score</th>
+        <th>Status & Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for o in opportunities %}
+      <tr id="row-{{ o['id'] }}">
+        <td>
+          <strong><a href="{{ url_for('opportunity_detail', opp_id=o['id']) }}">{{ o['title'] or '—' }}</a></strong><br>
+          {{ o['agency'] or '—' }}<br>
+          <small>ID: {{ o['external_id'] or '—' }}</small>
+        </td>
+        <td>
+          <div><strong>Due:</strong> {{ o['due_date'] or '—' }}</div>
+          <div><strong>Q&A:</strong> {{ o['qna_deadline'] or '—' }}</div>
+          <div><strong>Pre-Bid:</strong> {{ o['prebid'] or '—' }} {% if o['prebid_required'] %} ({{ o['prebid_required'] }}){% endif %}</div>
+        </td>
+        <td>
+          <div><strong>{{ o['category'] or '—' }}</strong></div>
+          <div><strong>Submit:</strong> {{ o['submission_method'] or '—' }}</div>
+          <div><small>Set-aside: {{ o['set_aside'] or '—' }}</small></div>
+        </td>
+        <td>
+          {% set scope = (o['scope_summary'] or '') %}
+          {{ scope[:120] }}{% if scope|length > 120 %}…{% endif %}
+        </td>
+        <td>{{ o['score'] if o['score'] is not none else '—' }}</td>
+        <td class="actions">
+          {% set st = (o['status'] or 'Open') %}
+          <span class="badge {{ 'approved' if st=='Approved' else ('open' if st=='Open' else ('won' if st=='Won' else 'lost')) }}">{{ st }}</span><br>
+          <a href="{{ url_for('opportunity_detail', opp_id=o['id']) }}">📁 Details</a>
+          <a href="{{ url_for('update_status', opp_id=o['id'], status='Approved') }}">✅ Approve</a>
+          <a href="{{ url_for('update_status', opp_id=o['id'], status='Won') }}">🏁 Won</a>
+          <a href="{{ url_for('update_status', opp_id=o['id'], status='Lost') }}">❌ Lost</a>
+          <a href="{{ url_for('update_status', opp_id=o['id'], status='Open') }}">🔄 Reopen</a>
+          <a href="{{ url_for('delete_opportunity', opp_id=o['id']) }}" onclick="return confirm('Delete this record?')">🗑 Delete</a>
+        </td>
+      </tr>
+      {% else %}
+      <tr><td colspan="6">No opportunities yet. Upload one!</td></tr>
+      {% endfor %}
+    </tbody>
+  </table>
 
-    <table>
-        <tr>
-            <th>Title</th>
-            <th>Agency</th>
-            <th>Due Date</th>
-            <th>Category</th>
-            <th>Scope (snippet)</th>
-            <th>Score</th>
-            <th>Status</th>
-            <th>Actions</th>
-        </tr>
-        {% for opp in opportunities %}
-        <tr>
-            <td>{{ opp['title'] }}</td>
-            <td>{{ opp['agency'] }}</td>
-            <td>{{ opp['due_date'] }}</td>
-            <td>{{ opp['category'] }}</td>
-            <td>
-                {% if opp['scope_summary'] %}
-                    {{ opp['scope_summary'][:80] }}{% if opp['scope_summary']|length > 80 %}...{% endif %}
-                {% else %}
-                    -
-                {% endif %}
-            </td>
-            <td class="score
-                {% if opp['score'] and opp['score']|int >= 70 %}high
-                {% elif opp['score'] and opp['score']|int >= 40 %}medium
-                {% else %}low{% endif %}">
-                {{ opp['score'] if opp['score'] else '-' }}
-            </td>
-            <td>{{ opp['status'] }}</td>
-            <td>
-                <button onclick="openModal({{ opp['id'] }})">🔎 Details</button>
-                {% if opp['url'] %}
-                    <a href="{{ opp['url'] }}" target="_blank">🔗 Link</a>
-                {% endif %}
-                <a href="{{ url_for('update_status', opp_id=opp['id'], status='Won') }}">✅ Won</a>
-                <a href="{{ url_for('update_status', opp_id=opp['id'], status='Lost') }}">❌ Lost</a>
-                <a href="{{ url_for('update_status', opp_id=opp['id'], status='Open') }}">🔄 Reopen</a>
-                <a href="{{ url_for('delete_opportunity', opp_id=opp['id']) }}" onclick="return confirm('Delete this opportunity?')">🗑 Delete</a>
-            </td>
-        </tr>
-
-        <!-- Modal for Details -->
-        <div id="modal{{ opp['id'] }}" class="modal">
-            <div class="modal-content">
-                <span class="close" onclick="closeModal({{ opp['id'] }})">&times;</span>
-                <h2>{{ opp['title'] }}</h2>
-                <p><b>Agency:</b> {{ opp['agency'] }}</p>
-                <p><b>Source:</b> {{ opp['source'] }}</p>
-                <p><b>Issue Date:</b> {{ opp['issue_date'] }}</p>
-                <p><b>Due Date:</b> {{ opp['due_date'] }}</p>
-                <p><b>Category:</b> {{ opp['category'] }}</p>
-                <p><b>Submission Method:</b> {{ opp['submission_method'] }}</p>
-                <p><b>Pre-Bid:</b> {{ opp['prebid'] }} ({{ opp['prebid_required'] }})</p>
-                <p><b>Q&A Deadline:</b> {{ opp['qna_deadline'] }}</p>
-                <p><b>Set-Aside:</b> {{ opp['set_aside'] }}</p>
-                <p><b>Bonding:</b> {{ opp['bonding'] }}</p>
-                <p><b>Insurance:</b> {{ opp['insurance'] }}</p>
-                <p><b>Contacts:</b> {{ opp['contacts'] }}</p>
-                <p><b>Scope Summary:</b> {{ opp['scope_summary'] }}</p>
-                <p><b>Tech Requirements:</b> {{ opp['tech_requirements'] }}</p>
-            </div>
-        </div>
-        {% endfor %}
-    </table>
-
-    <script>
-        function openModal(id) {
-            document.getElementById("modal" + id).style.display = "block";
+  <script>
+    (function () {
+      if (location.hash) {
+        var el = document.querySelector(location.hash);
+        if (el) {
+          el.scrollIntoView({ block: "center" });
+          el.classList.add("just-updated");
+          setTimeout(function(){ el.classList.remove("just-updated"); }, 1600);
         }
-        function closeModal(id) {
-            document.getElementById("modal" + id).style.display = "none";
-        }
-        window.onclick = function(event) {
-            var modals = document.getElementsByClassName("modal");
-            for (var i = 0; i < modals.length; i++) {
-                if (event.target == modals[i]) {
-                    modals[i].style.display = "none";
-                }
-            }
-        }
-    </script>
+      }
+    })();
+  </script>
 </body>
 </html>
-

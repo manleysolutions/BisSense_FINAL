@@ -1,0 +1,72 @@
+[
+  {
+    "title": "Neutral Host DAS \u2013 Austin Convention Center (RFQS 8200 PLS4005)",
+    "agency": "City of Austin Convention Center Department",
+    "category": "DAS / Neutral Host / In-Building Cellular",
+    "scope_summary": "Design, deploy, and maintain a neutral host DAS across the Austin Convention Center supporting multiple carriers.",
+    "corrections": []
+  },
+  {
+    "title": "Neutral DAS \u2013 US Holocaust Memorial Museum (95476725R1060)",
+    "agency": "US Holocaust Memorial Museum",
+    "category": "DAS / Neutral Host / In-Building Cellular",
+    "scope_summary": "Procurement of a distributed antenna system (DAS) for in-building coverage within the museum.",
+    "corrections": []
+  },
+  {
+    "title": "Indiana University Analog (POTS) Replacement \u2013 TEC-1823-2026",
+    "agency": "Indiana University",
+    "category": "POTS Replacement / Analog Modernization",
+    "scope_summary": "Replace legacy POTS lines at Indiana University with modern cellular/ATA alternatives.",
+    "corrections": []
+  },
+  {
+    "title": "SCH POTS2025-PH1 \u2013 School City of Hammond POTS Replacement",
+    "agency": "School City of Hammond, IN",
+    "category": "POTS Replacement / Elevator / Alarm",
+    "scope_summary": "Conversion of elevator and emergency POTS lines across district buildings to cellular ATA solutions.",
+    "corrections": []
+  },
+  {
+    "title": "Licking Valley Schools \u2013 Telephone / IP System Replacement",
+    "agency": "Licking Valley Local Schools, OH",
+    "category": "VoIP Modernization + Analog Line Conversion",
+    "scope_summary": "Replacement of school phone systems with VoIP, including migration of ~10 analog devices.",
+    "corrections": []
+  },
+  {
+    "title": "Poquoson City Public Schools \u2013 Phone System Replacement (SBO-25-003)",
+    "agency": "Poquoson City Public Schools, VA",
+    "category": "VoIP + Analog Line Support (Elevator, Fax, Alarm)",
+    "scope_summary": "Replace phone system with VoIP while ensuring analog support for elevators, fax, and fire alarm lines.",
+    "corrections": []
+  },
+  {
+    "title": "Tampa \u2013 Analog Phone Line Replacement (RFP #25-P-00272)",
+    "agency": "City of Tampa, FL",
+    "category": "Analog Line Replacement / POTS Modernization",
+    "scope_summary": "Replace remaining analog phone lines in city facilities with modern cellular/ATA-based solutions.",
+    "corrections": []
+  },
+  {
+    "title": "Hosted VOIP Services and Support",
+    "agency": "Housing Authority of the City of Long Branch",
+    "category": "VoIP / Telephony",
+    "scope_summary": "Hosted VoIP replacement and support across 5 facilities (~44 extensions, Polycom phones, auto attendants, DID, paging, E911, training, SLAs).",
+    "corrections": []
+  },
+  {
+    "title": "Neutral Distributed Antenna System (DAS)",
+    "agency": "U.S. Holocaust Memorial Museum",
+    "category": "DAS / In-Building Cellular",
+    "scope_summary": "Design, install, operate, and maintain a Neutral Host in-building multi-band DAS covering 250,000 sq ft Museum + 45,000 sq ft Admin building. Must support AT&T, Verizon, T-Mobile, Sprint. 95% coverage, modular, 4G/5G upgrade path.",
+    "corrections": []
+  },
+  {
+    "title": "Analog Line (POTS) Replacement",
+    "agency": "Indiana University",
+    "category": "POTS Replacement / Analog Modernization",
+    "scope_summary": "Replace legacy analog (POTS) lines with cellular POTS-in-a-box or VoIP ATA solutions for alarms, elevators, and fax lines. Includes battery backup and LTE/5G support.",
+    "corrections": []
+  }
+]

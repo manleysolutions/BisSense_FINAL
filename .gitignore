@@ -1,0 +1,22 @@
+# Python
+__pycache__/
+*.pyc
+
+# Local DB + archives
+opportunities.db
+archive/
+
+# Uploads (Render uses /tmp, but ignore any local)
+tmp/
+temp/
+uploads/
+*.log
+
+# venvs
+.venv/
+venv/
+env/
+
+# OS cruft
+.DS_Store
+Thumbs.db

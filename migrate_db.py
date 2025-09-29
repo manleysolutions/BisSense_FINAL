@@ -4,9 +4,16 @@ DB_FILE = "opportunities.db"
 conn = sqlite3.connect(DB_FILE)
 cur = conn.cursor()
 
+# Add new columns if they don’t exist
 new_cols = [
-    ("scope_summary", "TEXT"),
-    ("tech_requirements", "TEXT")
+    ("contacts", "TEXT"),
+    ("submission_method", "TEXT"),
+    ("qna_deadline", "TEXT"),
+    ("prebid", "TEXT"),
+    ("prebid_required", "TEXT"),
+    ("set_aside", "TEXT"),
+    ("bonding", "TEXT"),
+    ("insurance", "TEXT")
 ]
 
 for col, col_type in new_cols:

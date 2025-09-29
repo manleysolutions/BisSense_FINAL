@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Add Opportunity</title>
+    <style>
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { max-width: 500px; }
+        label { display: block; margin-top: 10px; font-weight: bold; }
+        input, select { width: 100%; padding: 6px; margin-top: 4px; }
+        button { margin-top: 15px; padding: 8px 14px; background: #007bff; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        button:hover { background: #0056b3; }
+    </style>
+</head>
+<body>
+    <h1>Add Opportunity</h1>
+    <form method="POST">
+        <label>Title</label>
+        <input type="text" name="title" required>
+
+        <label>Agency</label>
+        <input type="text" name="agency" required>
+
+        <label>Source</label>
+        <input type="text" name="source">
+
+        <label>Issue Date</label>
+        <input type="text" name="issue_date" placeholder="YYYY-MM-DD">
+
+        <label>Due Date</label>
+        <input type="text" name="due_date" placeholder="YYYY-MM-DD HH:MM TZ">
+
+        <label>URL</label>
+        <input type="text" name="url">
+
+        <label>Category</label>
+        <input type="text" name="category">
+
+        <label>Budget</label>
+        <input type="number" step="0.01" name="budget">
+
+        <label>Score</label>
+        <input type="number" name="score" min="0" max="100">
+
+        <button type="submit">Save</button>
+    </form>
+</body>
+</html>

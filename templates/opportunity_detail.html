@@ -1,0 +1,112 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>{{ opp['title'] or 'Opportunity' }}</title>
+  <style>
+    body{font-family:system-ui,Arial;margin:20px;background:#f7f7f9;}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:18px;align-items:start;}
+    .card{background:#fff;border:1px solid #e5e7eb;border-radius:10px;padding:16px;}
+    h1{margin:0 0 6px 0;}
+    h3{margin:8px 0;}
+    table{width:100%;border-collapse:collapse;}
+    th,td{border-bottom:1px solid #eee;padding:8px;vertical-align:top;}
+    .muted{color:#666;font-size:13px;}
+    .badge{padding:2px 8px;border-radius:6px;font-size:12px;background:#eef;border:1px solid #ccd;}
+    input[type=text],input[type=url]{width:100%;padding:8px;border:1px solid #ddd;border-radius:6px;}
+    input[type=file]{width:100%;}
+    .btn{display:inline-block;padding:8px 12px;border-radius:6px;text-decoration:none;background:#0d6efd;color:#fff;border:0;cursor:pointer;}
+    .btn-secondary{background:#6c757d;}
+    .row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;}
+    .right{float:right;}
+    .pill{padding:2px 8px;border-radius:999px;border:1px solid #ddd;background:#fafafa;}
+    a.action{margin-right:10px;}
+  </style>
+</head>
+<body>
+
+  <div class="row" style="justify-content:space-between;">
+    <div>
+      <h1>{{ opp['title'] or 'Opportunity' }}</h1>
+      <div class="muted">{{ opp['agency'] or '—' }}</div>
+      <div class="muted">ID: {{ opp['external_id'] or '—' }}</div>
+    </div>
+    <div>
+      <span class="badge">Status: {{ opp['status'] }}</span>
+      &nbsp; <a class="action" href="{{ url_for('index') }}">← Back</a>
+    </div>
+  </div>
+
+  <div class="grid" style="margin-top:16px;">
+    <!-- LEFT: Parsed snapshot -->
+    <div class="card">
+      <h3>Key Dates & Submission</h3>
+      <table>
+        <tr><td><strong>Due</strong></td><td>{{ opp['due_date'] or '—' }}</td></tr>
+        <tr><td><strong>Q&A</strong></td><td>{{ opp['qna_deadline'] or '—' }}</td></tr>
+        <tr><td><strong>Pre-Bid</strong></td><td>{{ opp['prebid'] or '—' }} {% if opp['prebid_required'] %} ({{ opp['prebid_required'] }}){% endif %}</td></tr>
+        <tr><td><strong>Submit</strong></td><td>{{ opp['submission_method'] or '—' }}</td></tr>
+        <tr><td><strong>Set-aside</strong></td><td>{{ opp['set_aside'] or '—' }}</td></tr>
+        <tr><td><strong>Bonding</strong></td><td>{{ opp['bonding'] or '—' }}</td></tr>
+        <tr><td><strong>Insurance</strong></td><td>{{ opp['insurance'] or '—' }}</td></tr>
+      </table>
+
+      <h3 style="margin-top:16px;">Scope (snippet)</h3>
+      <div class="muted">{{ (opp['scope_summary'] or '—') }}</div>
+
+      <h3 style="margin-top:16px;">Tech Requirements</h3>
+      <div class="muted">{{ opp['tech_requirements'] or '—' }}</div>
+    </div>
+
+    <!-- RIGHT: Attachments -->
+    <div class="card">
+      <h3>Files & Attachments</h3>
+
+      {% if attachments %}
+      <table>
+        <thead><tr><th>File</th><th>Size</th><th>Actions</th></tr></thead>
+        <tbody>
+          {% for a in attachments %}
+          <tr>
+            <td>
+              <div><strong>{{ a['original_name'] }}</strong></div>
+              {% if a['source_url'] %}
+                <div class="muted">Source: <a href="{{ a['source_url'] }}" target="_blank">{{ a['source_url'] }}</a></div>
+              {% endif %}
+              {% if a['note'] %}<div class="muted">{{ a['note'] }}</div>{% endif %}
+            </td>
+            <td>{{ (a['size'] or 0) | int }} bytes</td>
+            <td>
+              <a class="action" href="{{ url_for('attachment_download', att_id=a['id']) }}">Download</a>
+              <a class="action" href="{{ url_for('attachment_delete', att_id=a['id']) }}" onclick="return confirm('Delete this file?')">Delete</a>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+      {% else %}
+        <div class="muted">No files yet. Attach below.</div>
+      {% endif %}
+
+      <hr style="margin:16px 0">
+
+      <h3>Attach a File</h3>
+      <form method="POST" enctype="multipart/form-data" action="{{ url_for('attach_file', opp_id=opp['id']) }}">
+        <input type="file" name="file" accept=".pdf,.doc,.docx,.png,.jpg,.jpeg" required>
+        <label>Note (optional)</label>
+        <input type="text" name="note" placeholder="RFP main PDF / Floorplan / Addendum">
+        <br><br><button class="btn" type="submit">Upload File</button>
+      </form>
+
+      <h3 style="margin-top:16px;">Or Fetch from URL</h3>
+      <form method="POST" action="{{ url_for('attach_url', opp_id=opp['id']) }}">
+        <label>File URL</label>
+        <input type="url" name="url" placeholder="https://example.gov/itb.pdf" required>
+        <label>Note (optional)</label>
+        <input type="text" name="note" placeholder="Floorplan set A, SOW, etc.">
+        <br><br><button class="btn" type="submit">Fetch & Attach</button>
+      </form>
+    </div>
+  </div>
+</body>
+</html>

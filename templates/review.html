@@ -1,0 +1,29 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title>Review & Correct Parsed RFP</title>
+  <style>
+    body { font-family: system-ui, Arial; margin:20px; background:#f8f9fa; }
+    h2 { margin-bottom:10px; }
+    form { background:#fff; padding:20px; border-radius:8px; max-width:800px; }
+    label { display:block; margin-top:12px; font-weight:600; }
+    textarea, input { width:100%; padding:8px; border:1px solid #ccc; border-radius:4px; }
+    textarea { height:60px; }
+    button { margin-top:16px; padding:8px 16px; border:none; border-radius:4px; background:#007bff; color:#fff; cursor:pointer; }
+    button:hover { background:#0056b3; }
+    a { margin-left:12px; }
+  </style>
+</head>
+<body>
+  <h2>Review & Correct Parsed RFP</h2>
+  <form method="POST" action="{{ url_for('review_rfp') }}">
+    {% for k,v in data.items() %}
+      <label>{{ k.replace("_", " ").title() }}</label>
+      <textarea name="{{ k }}">{{ v if v is not none else '' }}</textarea>
+    {% endfor %}
+    <button type="submit">💾 Save</button>
+    <a href="{{ url_for('index') }}">Cancel</a>
+  </form>
+</body>
+</html>
